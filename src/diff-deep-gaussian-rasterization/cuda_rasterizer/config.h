@@ -12,7 +12,7 @@
 #ifndef CUDA_RASTERIZER_CONFIG_H_INCLUDED
 #define CUDA_RASTERIZER_CONFIG_H_INCLUDED
 
-#define NUM_CHANNELS 3 // Default 3, RGB
+#define NUM_CHANNELS 32 // Default 3, RGB -> set to 64
 #define BLOCK_X 16
 #define BLOCK_Y 16
 

@@ -50,14 +50,10 @@ class DeepGaussianModel(GaussianModel):
         self.percent_dense = 0
         self.spatial_lr_scale = 0
 
-        self.mlp = nn.Sequential(
-            nn.Linear(n_latents,256),
-            nn.SiLU(),
-            nn.Linear(256, 256),
-            nn.SiLU(),
-            nn.Linear(256, 256),
-            nn.SiLU(),
-            nn.Linear(256, 3*((sh_degree + 1) ** 2))
+        self.cnn = nn.Sequential(
+            nn.Conv2d(n_latents,3, 3, padding=1, padding_mode='reflect'),
+            nn.Sigmoid(),
+            #nn.SiLU(),
         ).cuda()
         self.setup_functions()
 
@@ -73,7 +69,7 @@ class DeepGaussianModel(GaussianModel):
             self.denom,
             self.optimizer.state_dict(),
             self.spatial_lr_scale,
-            self.mlp.state_dict(),
+            self.cnn.state_dict(),
         )
     
     def restore(self, model_args, training_args):
@@ -88,12 +84,12 @@ class DeepGaussianModel(GaussianModel):
         denom,
         opt_dict, 
         self.spatial_lr_scale,
-        mlp_dict) = model_args
+        cnn_dict) = model_args
         self.training_setup(training_args)
         self.xyz_gradient_accum = xyz_gradient_accum
         self.denom = denom
         self.optimizer.load_state_dict(opt_dict)
-        self.mlp.load_state_dict(mlp_dict)
+        self.cnn.load_state_dict(cnn_dict)
 
     @property
     def get_scaling(self):
@@ -110,16 +106,20 @@ class DeepGaussianModel(GaussianModel):
     @property
     def get_features(self):
         """Transform stred features to return SH features"""
-        sh_features = self.nn_forward(self.latent_features)
-        return sh_features
+        #sh_features = self.nn_forward(self.latent_features) -> If nn forward is run here, the gaussian will have the same sh for all points of view
+        return self.latent_features
     
     @property
     def get_opacity(self):
         return self.opacity_activation(self._opacity)
     
     def nn_forward(self, latent_features):
-        sh_features = self.mlp(latent_features).reshape((latent_features.shape[0],(self.active_sh_degree + 1) ** 2,3)).contiguous()*15
-        return sh_features
+        """ 
+        - Input is n_latentsxHxW
+        - Output is 3xHxW
+        """
+        rendered_image = self.cnn(latent_features)
+        return rendered_image
 
     def get_covariance(self, scaling_modifier = 1):
         return self.covariance_activation(self.get_scaling, scaling_modifier, self._rotation)
@@ -162,13 +162,13 @@ class DeepGaussianModel(GaussianModel):
             {'params': [self._opacity], 'lr': training_args.opacity_lr, "name": "opacity"},
             {'params': [self._scaling], 'lr': training_args.scaling_lr, "name": "scaling"},
             {'params': [self._rotation], 'lr': training_args.rotation_lr, "name": "rotation"},
-            {'params': [x for x in self.mlp.parameters()], 'lr': training_args.feature_lr, "name": "mlp"}
+            {'params': [x for x in self.cnn.parameters()], 'lr': training_args.feature_lr, "name": "cnn"}
         ]
-        #for i,param in enumerate(self.mlp.parameters()):
-        #    l.append({'params': [param], 'lr': training_args.feature_lr, "name": "mlp_"+str(i)})
+        #for i,param in enumerate(self.cnn.parameters()):
+        #    l.append({'params': [param], 'lr': training_args.feature_lr, "name": "cnn_"+str(i)})
         """
-        for i,param in enumerate(self.mlp.parameter()):
-            l.append({'params':param, 'lr': training_args.feature_lr, "name": "mlp_"+str(i)}) 
+        for i,param in enumerate(self.cnn.parameter()):
+            l.append({'params':param, 'lr': training_args.feature_lr, "name": "cnn_"+str(i)}) 
         """
         self.optimizer = torch.optim.Adam(l, lr=0.0, eps=1e-15)
         self.xyz_scheduler_args = get_expon_lr_func(lr_init=training_args.position_lr_init*self.spatial_lr_scale,
@@ -213,8 +213,8 @@ class DeepGaussianModel(GaussianModel):
         elements[:] = list(map(tuple, attributes))
         el = PlyElement.describe(elements, 'vertex')
         PlyData([el]).write(path)
-        mlp_path = os.path.join(os.path.split(path)[0],"mlp.ckpt")
-        torch.save(self.mlp.state_dict(),mlp_path)
+        cnn_path = os.path.join(os.path.split(path)[0],"cnn.ckpt")
+        torch.save(self.cnn.state_dict(),cnn_path)
 
     def reset_opacity(self):
         opacities_new = inverse_sigmoid(torch.min(self.get_opacity, torch.ones_like(self.get_opacity)*0.01))
@@ -254,8 +254,8 @@ class DeepGaussianModel(GaussianModel):
         self._scaling = nn.Parameter(torch.tensor(scales, dtype=torch.float, device="cuda").requires_grad_(True))
         self._rotation = nn.Parameter(torch.tensor(rots, dtype=torch.float, device="cuda").requires_grad_(True))
 
-        mlp_path = os.path.join(os.path.split(path)[0],"mlp.ckpt")
-        self.mlp.load_state_dict(torch.load(mlp_path))
+        cnn_path = os.path.join(os.path.split(path)[0],"cnn.ckpt")
+        self.cnn.load_state_dict(torch.load(cnn_path))
 
     def replace_tensor_to_optimizer(self, tensor, name):
         optimizable_tensors = {}
@@ -275,7 +275,7 @@ class DeepGaussianModel(GaussianModel):
     def _prune_optimizer(self, mask):
         optimizable_tensors = {}
         for group in self.optimizer.param_groups:
-            if group['name']=="mlp":
+            if group['name']=="cnn":
                 continue
             stored_state = self.optimizer.state.get(group['params'][0], None)
             if stored_state is not None:
@@ -310,7 +310,7 @@ class DeepGaussianModel(GaussianModel):
     def cat_tensors_to_optimizer(self, tensors_dict):
         optimizable_tensors = {}
         for group in self.optimizer.param_groups:
-            if group['name']=="mlp":
+            if group['name']=="cnn":
                 continue
             assert len(group["params"]) == 1
             extension_tensor = tensors_dict[group["name"]]
