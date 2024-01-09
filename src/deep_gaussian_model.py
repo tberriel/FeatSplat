@@ -51,9 +51,10 @@ class DeepGaussianModel(GaussianModel):
         self.spatial_lr_scale = 0
 
         self.cnn = nn.Sequential(
-            nn.Conv2d(n_latents,3, 3, padding=1, padding_mode='reflect'),
+            nn.Conv2d(n_latents, n_latents*2,1, padding=0, padding_mode='reflect'),
+            nn.SiLU(),
+            nn.Conv2d(n_latents*2,3, 1, padding=0, padding_mode='reflect'),
             nn.Sigmoid(),
-            #nn.SiLU(),
         ).cuda()
         self.setup_functions()
 
