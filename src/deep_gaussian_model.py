@@ -33,11 +33,12 @@ class DeepGaussianModel(GaussianModel):
         self.rotation_activation = torch.nn.functional.normalize
 
 
-    def __init__(self, sh_degree:int, n_latents : int):
+    def __init__(self, sh_degree:int, n_latents : int, n_classes : int):
         #super().__init__(sh_degree)
         self.active_sh_degree = sh_degree
         self.max_sh_degree = sh_degree
         self.n_latents = n_latents  
+        self.n_classes = n_classes
         self._xyz = torch.empty(0)
         self.latent_features = torch.empty(0)
         self._scaling = torch.empty(0)
@@ -53,8 +54,8 @@ class DeepGaussianModel(GaussianModel):
         self.cnn = nn.Sequential(
             nn.Conv2d(n_latents, n_latents*2,1, padding=0, padding_mode='reflect'),
             nn.SiLU(),
-            nn.Conv2d(n_latents*2,3, 1, padding=0, padding_mode='reflect'),
-            nn.Sigmoid(),
+            nn.Conv2d(n_latents*2,3+n_classes, 1, padding=0, padding_mode='reflect'),
+            #nn.Sigmoid(),
         ).cuda()
         self.setup_functions()
 
@@ -119,8 +120,10 @@ class DeepGaussianModel(GaussianModel):
         - Input is n_latentsxHxW
         - Output is 3xHxW
         """
-        rendered_image = self.cnn(latent_features)
-        return rendered_image
+        output = self.cnn(latent_features)
+        rendered_image = nn.Sigmoid(output[...,:3])
+        segmentation_image = nn.Softmax(output[...,3:])
+        return rendered_image, segmentation_image
 
     def get_covariance(self, scaling_modifier = 1):
         return self.covariance_activation(self.get_scaling, scaling_modifier, self._rotation)
