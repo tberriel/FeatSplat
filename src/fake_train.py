@@ -33,7 +33,7 @@ except ImportError:
 def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoint_iterations, checkpoint, debug_from):
     first_iter = 0
     tb_writer = prepare_output_and_logger(dataset)
-    gaussians = DeepGaussianModel(dataset.sh_degree, dataset.n_latents)
+    gaussians = DeepGaussianModel(dataset.sh_degree, dataset.n_latents, dataset.n_classes)
     scene = Scene(dataset, gaussians, load_iteration=30000)
     gaussians.training_setup(opt)
     if checkpoint:

@@ -48,6 +48,7 @@ class ModelParams(ParamGroup):
     def __init__(self, parser, sentinel=False):
         self.sh_degree = 0
         self.n_latents = 64
+        self.n_classes = 32#1581
         self._source_path = ""
         self._model_path = ""
         self._images = "images"

@@ -121,8 +121,8 @@ class DeepGaussianModel(GaussianModel):
         - Output is 3xHxW
         """
         output = self.cnn(latent_features)
-        rendered_image = nn.Sigmoid(output[...,:3])
-        segmentation_image = nn.Softmax(output[...,3:])
+        rendered_image = nn.functional.sigmoid(output[:3])
+        segmentation_image = nn.functional.softmax(output[3:])
         return rendered_image, segmentation_image
 
     def get_covariance(self, scaling_modifier = 1):

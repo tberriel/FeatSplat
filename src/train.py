@@ -33,7 +33,7 @@ except ImportError:
 def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoint_iterations, checkpoint, debug_from):
     first_iter = 0
     tb_writer = prepare_output_and_logger(dataset)
-    gaussians = DeepGaussianModel(dataset.sh_degree, dataset.n_latents)
+    gaussians = DeepGaussianModel(dataset.sh_degree, dataset.n_latents, dataset.n_classes)
     scene = Scene(dataset, gaussians)
     gaussians.training_setup(opt)
     if checkpoint:
@@ -42,6 +42,8 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
     bg_color = [0 for _ in range(gaussians.n_latents)] # Let's start with black background, ideally, background light could also be learnt as a latent vector
     background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
+
+    ce_loss = torch.nn.CrossEntropyLoss(ignore_index=65535)
 
     iter_start = torch.cuda.Event(enable_timing = True)
     iter_end = torch.cuda.Event(enable_timing = True)
@@ -83,12 +85,15 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         bg = torch.rand((gaussians.n_latents), device="cuda") if opt.random_background else background
 
         render_pkg = render(viewpoint_cam, gaussians, pipe, bg, override_color=gaussians.get_features)
-        image, segmentation, viewspace_point_tensor, visibility_filter, radii = render_pkg["render"], render_pkg["segmentation_image"], render_pkg["viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
+        image, segmentation, viewspace_point_tensor, visibility_filter, radii = render_pkg["render"], render_pkg["segmentation"], render_pkg["viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
 
         # Loss
         gt_image = viewpoint_cam.original_image.cuda()
+        gt_segmentation = viewpoint_cam.original_semantic.cuda()
+        gt_segmentation= torch.where(gt_segmentation>32, 65535, gt_segmentation)
         Ll1 = l1_loss(image, gt_image)
-        loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image))
+        Lce = ce_loss(segmentation.permute(1,2,0).flatten(0,1), gt_segmentation.flatten().long())
+        loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image)) + Lce
         loss.backward()
 
         iter_end.record()
