@@ -31,6 +31,8 @@ class CameraInfo(NamedTuple):
     FovX: np.array
     image: np.array
     image_path: str
+    semantic_image: np.array
+    semantic_image_path: str
     image_name: str
     width: int
     height: int
@@ -99,7 +101,7 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
         image = Image.open(image_path)
 
         cam_info = CameraInfo(uid=uid, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
-                              image_path=image_path, image_name=image_name, width=width, height=height)
+                              image_path=image_path, semantic_image=None, semantic_image_path=None, image_name=image_name, width=width, height=height)
         cam_infos.append(cam_info)
     sys.stdout.write('\n')
     return cam_infos
@@ -201,6 +203,9 @@ def readCamerasFromTransforms(path, transformsfile, white_background, extension=
             image_name = Path(cam_name).stem
             image = Image.open(image_path)
 
+            semantic_image_path = os.path.join(path,"semantic/"+frame["file_path"]+".png")
+            semantic_image = Image.open(semantic_image_path)
+
             im_data = np.array(image.convert("RGBA"))
 
             bg = np.array([1,1,1]) if white_background else np.array([0, 0, 0])
@@ -214,7 +219,7 @@ def readCamerasFromTransforms(path, transformsfile, white_background, extension=
             FovX = fovx
 
             cam_infos.append(CameraInfo(uid=idx, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
-                            image_path=image_path, image_name=image_name, width=image.size[0], height=image.size[1]))
+                            image_path=image_path, semantic_image=semantic_image, semantic_image_path=semantic_image_path, image_name=image_name, width=image.size[0], height=image.size[1]))
             
     return cam_infos
 
