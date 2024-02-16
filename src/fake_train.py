@@ -12,10 +12,10 @@
 import os
 import torch
 from random import randint
-from modules.gaussian_splatting.utils.loss_utils import l1_loss, ssim
+from utils.loss_utils import l1_loss, ssim
 from deep_gaussian_renderer import render, network_gui
 import sys
-from modules.gaussian_splatting.scene import Scene
+from scene import Scene
 from modules.gaussian_splatting.utils.general_utils import safe_state
 import uuid
 from tqdm import tqdm

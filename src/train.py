@@ -12,14 +12,14 @@
 import os
 import torch
 from random import randint
-from modules.gaussian_splatting.utils.loss_utils import l1_loss, ssim
+from utils.loss_utils import l1_loss, ssim
 from deep_gaussian_renderer import render, network_gui
 import sys
-from modules.gaussian_splatting.scene import Scene
-from modules.gaussian_splatting.utils.general_utils import safe_state
+from scene import Scene
+from utils.general_utils import safe_state
 import uuid
 from tqdm import tqdm
-from modules.gaussian_splatting.utils.image_utils import psnr
+from utils.image_utils import psnr
 from argparse import ArgumentParser, Namespace
 from modules.gaussian_splatting.arguments import PipelineParams, OptimizationParams
 from deep_gaussian_model import DeepGaussianModel
