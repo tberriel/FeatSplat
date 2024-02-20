@@ -54,9 +54,15 @@ class DeepGaussianModel(GaussianModel):
         self.cnn = nn.Sequential(
             nn.Conv2d(n_latents, n_latents*2,1, padding=0, padding_mode='reflect'),
             nn.SiLU(),
-            nn.Conv2d(n_latents*2,3+n_classes, 1, padding=0, padding_mode='reflect'),
-            #nn.Sigmoid(),
+            nn.Conv2d(n_latents*2,3, 1, padding=0, padding_mode='reflect'),
+            nn.Sigmoid()
         ).cuda()
+        if n_classes >0:
+            self.cnn_seg = nn.Sequential(
+                nn.Conv2d(n_latents, n_classes,1, padding=0, padding_mode='reflect')
+            ).cuda()
+        else:
+            self.cnn_seg = None
         self.setup_functions()
 
     def capture(self):
@@ -108,7 +114,6 @@ class DeepGaussianModel(GaussianModel):
     @property
     def get_features(self):
         """Transform stred features to return SH features"""
-        #sh_features = self.nn_forward(self.latent_features) -> If nn forward is run here, the gaussian will have the same sh for all points of view
         return self.latent_features
     
     @property
@@ -120,9 +125,11 @@ class DeepGaussianModel(GaussianModel):
         - Input is n_latentsxHxW
         - Output is 3xHxW
         """
-        output = self.cnn(latent_features)
-        rendered_image = nn.functional.sigmoid(output[:3])
-        segmentation_image = nn.functional.softmax(output[3:]) if self.n_classes >0 else None
+        rendered_image = self.cnn(latent_features)
+        if self.cnn_seg is not None:
+            segmentation_image = nn.functional.softmax(self.cnn_seg(latent_features), dim=0)
+        else:
+            segmentation_image = None
         return rendered_image, segmentation_image
 
     def get_covariance(self, scaling_modifier = 1):
