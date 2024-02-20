@@ -28,7 +28,6 @@ class Camera(nn.Module):
         self.FoVx = FoVx
         self.FoVy = FoVy
         self.image_name = image_name
-        self.semantic_image = semantic_image.to(self.data_device)
 
         try:
             self.data_device = torch.device(data_device)
@@ -37,6 +36,7 @@ class Camera(nn.Module):
             print(f"[Warning] Custom device {data_device} failed, fallback to default cuda device" )
             self.data_device = torch.device("cuda")
 
+        self.original_semantic = semantic_image.to(self.data_device)
         self.original_image = image.clamp(0.0, 1.0).to(self.data_device)
         self.image_width = self.original_image.shape[2]
         self.image_height = self.original_image.shape[1]

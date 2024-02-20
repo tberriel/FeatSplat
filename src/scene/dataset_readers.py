@@ -203,7 +203,7 @@ def readCamerasFromTransforms(path, transformsfile, white_background, extension=
             image_name = Path(cam_name).stem
             image = Image.open(image_path)
 
-            semantic_image_path = os.path.join(path,"semantic/"+frame["file_path"]+".png")
+            semantic_image_path = os.path.join(path,"semantic",frame["file_path"][:-4]+".png")
             semantic_image = Image.open(semantic_image_path)
 
             im_data = np.array(image.convert("RGBA"))
