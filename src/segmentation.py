@@ -56,17 +56,20 @@ def getTopClassesMapping(file_name: str ="/media/tberriel/My_Book_2/ScanNetpp/de
         data_dict["count"].append(line["count"])
     return data_dict
 
-def loadSemanticClasses(n = 63, load_file = True):
+def loadSemanticClasses(n = 31, load_file = True):
     data = []
+    weights = []
     map_file ="/media/tberriel/My_Book_2/ScanNetpp/decoded_data_nerfstudio/"+str(n)+"_most_common_classes.csv"
     if os.path.exists(map_file) and load_file:
         with open(map_file, "r") as file:
             lines = csv.DictReader(file)
             for row in lines:
                 row["idx"] = int(row["idx"])
-                row["rgb"]=[float(row["r"]), float(row["g"]), float(row["b"])]
+                row["rgb"] = [float(row["r"]), float(row["g"]), float(row["b"])]
+                row["count"] = int(row["count"])
                 
                 data.append(row) 
+                weights.append(1/row["count"])
     else:
         file_sem_clases ="/media/tberriel/My_Book_2/ScanNetpp/data/metadata/semantic_classes.txt"
         colours = colors.ListedColormap(plt.cm.tab20b.colors + plt.cm.tab20c.colors , name="tab20_extended")
@@ -76,17 +79,21 @@ def loadSemanticClasses(n = 63, load_file = True):
         with open(file_sem_clases, "r") as file:
             lines = file.readlines()
             for i,line in enumerate(lines):
-                if line.strip() in top_classes["class"]:
+                stripped_line = line.strip()
+                if stripped_line in top_classes["class"]:
+                    position = top_classes["class"].index(stripped_line)
                     # Convert values to appropriate data types
                     row = dict()
                     row["idx"] = i
-                    row["class"] = line.strip()
+                    row["class"] = stripped_line
                     row["rgb"]=cmap[i_col,:3]
+                    row["count"] = top_classes["count"][position]
+                    weights.append(1/row["count"])
                     i_col+=1
 
                     # Store row in the list
                     data.append(row) 
-        if True:
+        if False:
             file_path = "/media/tberriel/My_Book_2/ScanNetpp/decoded_data_nerfstudio/"+str(n)+"_most_common_classes.csv"
             new_data = []
             for row in data:
@@ -99,9 +106,9 @@ def loadSemanticClasses(n = 63, load_file = True):
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
                 writer.writerows(data)   
-    return data
+    return data, torch.tensor(weights)
 
-def mapClassesToRGB(seg_image, map_data, empty_value=65535):
+def mapClassesToRGB(seg_image, map_data):
     """
     Maps each pixel in an image with idx values to corresponding RGB colors from data.
 

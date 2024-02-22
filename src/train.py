@@ -24,7 +24,7 @@ from argparse import ArgumentParser, Namespace
 from modules.gaussian_splatting.arguments import PipelineParams, OptimizationParams
 from deep_gaussian_model import DeepGaussianModel
 from arguments import ModelParams
-from segmentation import mapClassesToRGB, loadClassesMapping
+from segmentation import mapClassesToRGB, loadSemanticClasses
 try:
     from torch.utils.tensorboard import SummaryWriter
     TENSORBOARD_FOUND = True
@@ -69,9 +69,9 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     iter_end = torch.cuda.Event(enable_timing = True)
 
     if dataset.n_classes>0:
-        data_mapping = loadClassesMapping()
+        data_mapping, weights = loadSemanticClasses(n = dataset.n_classes-1)
         fig, ax = plt.subplots()
-        ce_loss = torch.nn.CrossEntropyLoss(ignore_index=65535)# In dataloading set 31 as no class, this index shouldn't be ignored as to give a way to the network to label thinks it does not recognizes
+        ce_loss = torch.nn.CrossEntropyLoss(weight=weights if dataset.weighted_ce_loss else None)# In dataloading set 31 as no class, that number shouldn't be ignored as to give a way to the network to label thinks it does not recognizes
     viewpoint_stack = None
     ema_loss_for_log = 0.0
     progress_bar = tqdm(range(first_iter, opt.iterations), desc="Training progress")
