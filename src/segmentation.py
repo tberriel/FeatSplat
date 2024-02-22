@@ -119,11 +119,14 @@ def mapClassesToRGB(seg_image, map_data, empty_value=65535):
 
     # Map each pixel value to its color
     legend_classes = {"labels":[],"rgb":[]}
-    for i in range(seg_image.max()):
+    for i in range(seg_image.max()+1):
         if (seg_image==i).sum()>0:
-            legend_classes["labels"].append(map_data[i]["class"])
-            legend_classes["rgb"].append(map_data[i]["rgb"])
-        rgb_image = torch.where(seg_image == i, torch.tensor(map_data[i]["rgb"],device=device), rgb_image)
-    torch.where(seg_image == seg_image.max(), torch.tensor([1,1,1],device=device), rgb_image)
+            if i >= len(map_data):
+                rgb_image = torch.where(seg_image == seg_image.max(), torch.tensor([1,1,1],device=device), rgb_image)
+            else:
+                legend_classes["labels"].append(map_data[i]["class"])
+                legend_classes["rgb"].append(map_data[i]["rgb"])
+            rgb_image = torch.where(seg_image == i, torch.tensor(map_data[i]["rgb"],device=device), rgb_image)
+    
     return rgb_image.cpu().numpy(), legend_classes
 
