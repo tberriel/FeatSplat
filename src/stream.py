@@ -12,19 +12,18 @@
 import os
 import torch
 from random import randint
-from utils.loss_utils import l1_loss, ssim
 from deep_gaussian_renderer import render, network_gui
 import sys
 from scene import Scene
 from modules.gaussian_splatting.utils.general_utils import safe_state
 import uuid
 from tqdm import tqdm
-from modules.gaussian_splatting.utils.image_utils import psnr
 from argparse import ArgumentParser, Namespace
 from modules.gaussian_splatting.arguments import PipelineParams, OptimizationParams
 from deep_gaussian_model import DeepGaussianModel
 from arguments import ModelParams
-from segmentation import mapClassesToRGB, loadClassesMapping
+from segmentation import mapClassesToRGB, loadSemanticClasses
+from keyboard import wait
 try:
     from torch.utils.tensorboard import SummaryWriter
     TENSORBOARD_FOUND = True
@@ -33,12 +32,24 @@ except ImportError:
 
 import matplotlib.pyplot as plt
 # Function to plot the image
-def plot_image(image):
-  plt.clf()
-  plt.imshow(image)
-  plt.axis('off')
-  plt.draw()
-  plt.pause(0.01)
+def plot_seg_image(seg_image, data_mapping):
+  
+    image, lgnd_classes = mapClassesToRGB(seg_image, data_mapping)
+
+    # Create legend elements
+    legend_handles = []
+    for i in range(len(lgnd_classes["labels"])):
+        legend_handles.append(plt.Rectangle((0, 0), 1, 1, color=lgnd_classes["rgb"][i], label=lgnd_classes["labels"][i]))
+
+    # Add legend to the plot
+
+    plt.clf()
+    plt.imshow(image)
+    plt.legend(handles=legend_handles, title="Class Legend",bbox_to_anchor=(1.6, 1), borderaxespad=0.5,)
+    plt.tight_layout()
+    plt.axis('off')
+    plt.draw()
+    plt.pause(0.01)
 
 def streaming(dataset, opt, pipe, checkpoint):
     gaussians = DeepGaussianModel(dataset.sh_degree, dataset.n_latents, dataset.n_classes)
@@ -52,7 +63,7 @@ def streaming(dataset, opt, pipe, checkpoint):
     background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
 
     if dataset.n_classes>0:
-        data_mapping = loadClassesMapping()
+        data_mapping = loadSemanticClasses()
         fig, ax = plt.subplots()
     with torch.no_grad():
         while True:     
@@ -68,8 +79,7 @@ def streaming(dataset, opt, pipe, checkpoint):
                         net_image_bytes = memoryview((torch.clamp(net_image, min=0, max=1.0) * 255).byte().permute(1, 2, 0).contiguous().cpu().numpy())
                         if dataset.n_classes>0:
                             seg_image = out["segmentation"].argmax(0)
-                            rgb_seg_image = mapClassesToRGB(seg_image, data_mapping)
-                            plot_image(rgb_seg_image)
+                            plot_seg_image(seg_image, data_mapping)
                     network_gui.send(net_image_bytes, dataset.source_path)
 
                 except Exception as e:

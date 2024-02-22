@@ -177,6 +177,27 @@ def readColmapSceneInfo(path, images, eval, llffhold=8):
                            nerf_normalization=nerf_normalization,
                            ply_path=ply_path)
     return scene_info
+def loadClasses(n = 31):
+    file_name = "/media/tberriel/My_Book_2/ScanNetpp/decoded_data_nerfstudio/"+str(n)+"_most_common_classes.csv"
+    import csv
+    data = []
+    with open(file_name, "r") as csvfile:
+        reader = csv.DictReader(csvfile)
+        for i,row in enumerate(reader):
+            data.append(row)
+    return data
+
+def filtered_semantic_classes(sem_img, classes, no_class = 31):
+    sem_img = np.array(sem_img)
+    filtered_img = np.zeros_like(sem_img)+31
+    cum_sum = 0
+    for i, class_i in enumerate(classes):
+        #if ((sem_img==int(class_i["idx"])).sum()>0):
+            #cum_sum += (sem_img==i).sum()
+            #print("{}:{}:{}".format(class_i["idx"], class_i["class"], (sem_img==i).sum()))
+            #filtered_img[sem_img == int(class_i["idx"])] = i
+        filtered_img = np.where(sem_img == int(class_i["idx"]), i, filtered_img)
+    return Image.fromarray(filtered_img, "RGB")
 
 def readCamerasFromTransforms(path, transformsfile, white_background, extension=".png"):
     cam_infos = []
@@ -186,6 +207,7 @@ def readCamerasFromTransforms(path, transformsfile, white_background, extension=
         fovx = contents["camera_angle_x"]
 
         frames = contents["frames"]
+        selected_classes = loadClasses()
         for idx, frame in enumerate(frames):
             cam_name = os.path.join(path, frame["file_path"] + extension)
 
@@ -204,7 +226,9 @@ def readCamerasFromTransforms(path, transformsfile, white_background, extension=
             image = Image.open(image_path)
 
             semantic_image_path = os.path.join(path,"semantic",frame["file_path"][:-4]+".png")
-            semantic_image = Image.open(semantic_image_path)
+            raw_semantic_image = Image.open(semantic_image_path)
+            semantic_image = filtered_semantic_classes(raw_semantic_image, selected_classes)
+
 
             im_data = np.array(image.convert("RGBA"))
 
