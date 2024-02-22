@@ -24,11 +24,33 @@ from argparse import ArgumentParser, Namespace
 from modules.gaussian_splatting.arguments import PipelineParams, OptimizationParams
 from deep_gaussian_model import DeepGaussianModel
 from arguments import ModelParams
+from segmentation import mapClassesToRGB, loadClassesMapping
 try:
     from torch.utils.tensorboard import SummaryWriter
     TENSORBOARD_FOUND = True
 except ImportError:
     TENSORBOARD_FOUND = False
+
+import matplotlib.pyplot as plt
+# Function to plot the image
+def plot_seg_image(seg_image, data_mapping):
+  
+    image, lgnd_classes = mapClassesToRGB(seg_image, data_mapping)
+
+    # Create legend elements
+    legend_handles = []
+    for i in range(len(lgnd_classes["labels"])):
+        legend_handles.append(plt.Rectangle((0, 0), 1, 1, color=lgnd_classes["rgb"][i], label=lgnd_classes["labels"][i]))
+
+    # Add legend to the plot
+
+    plt.clf()
+    plt.imshow(image)
+    plt.legend(handles=legend_handles, title="Class Legend",bbox_to_anchor=(1.6, 1), borderaxespad=0.5,)
+    plt.tight_layout()
+    plt.axis('off')
+    plt.draw()
+    plt.pause(0.01)
 
 def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoint_iterations, checkpoint, debug_from):
     first_iter = 0
@@ -43,11 +65,13 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     bg_color = [0 for _ in range(gaussians.n_latents)] # Let's start with black background, ideally, background light could also be learnt as a latent vector
     background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
 
-    ce_loss = torch.nn.CrossEntropyLoss(ignore_index=65535)
-
     iter_start = torch.cuda.Event(enable_timing = True)
     iter_end = torch.cuda.Event(enable_timing = True)
 
+    if dataset.n_classes>0:
+        data_mapping = loadClassesMapping()
+        fig, ax = plt.subplots()
+        ce_loss = torch.nn.CrossEntropyLoss(ignore_index=65535)# In dataloading set 31 as no class, this index shouldn't be ignored as to give a way to the network to label thinks it does not recognizes
     viewpoint_stack = None
     ema_loss_for_log = 0.0
     progress_bar = tqdm(range(first_iter, opt.iterations), desc="Training progress")
@@ -61,8 +85,11 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 custom_cam, do_training, pipe.convert_SHs_python, pipe.compute_cov3D_python, keep_alive, scaling_modifer = network_gui.receive()
                 if custom_cam != None:
                     out =  render(custom_cam, gaussians, pipe, background, scaling_modifer, override_color=gaussians.get_features)
-                    net_image, seg_image = out["render"], out["segmentation"]
+                    net_image = out["render"]
                     net_image_bytes = memoryview((torch.clamp(net_image, min=0, max=1.0) * 255).byte().permute(1, 2, 0).contiguous().cpu().numpy())
+                    if dataset.n_classes>0:
+                        seg_image = out["segmentation"].argmax(0)
+                        plot_seg_image(seg_image, data_mapping)
                 network_gui.send(net_image_bytes, dataset.source_path)
                 if do_training and ((iteration < int(opt.iterations)) or not keep_alive):
                     break
@@ -90,14 +117,14 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         # Loss
         if segmentation is not None:
             gt_segmentation = viewpoint_cam.original_semantic.cuda()
-            gt_segmentation= torch.where(gt_segmentation>32, 65535, gt_segmentation)
+            #gt_segmentation= torch.where(gt_segmentation>32, 65535, gt_segmentation)
             Lce = ce_loss(segmentation.permute(1,2,0).flatten(0,1), gt_segmentation.flatten().long())
         else: 
             Lce = 0.
         
         gt_image = viewpoint_cam.original_image.cuda()
         Ll1 = l1_loss(image, gt_image)
-        loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image)) + Lce*0.01
+        loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image)) + Lce*0.1
         loss.backward()
 
         iter_end.record()
@@ -112,7 +139,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 progress_bar.close()
 
             # Log and save
-            training_report(tb_writer, iteration, Ll1, loss, l1_loss, iter_start.elapsed_time(iter_end), testing_iterations, scene, render, (pipe, background))
+            training_report(tb_writer, iteration, Ll1, loss, l1_loss, ce_loss, iter_start.elapsed_time(iter_end), testing_iterations, scene, render, (pipe, background))
             if (iteration in saving_iterations):
                 print("\n[ITER {}] Saving Gaussians".format(iteration))
                 scene.save(iteration)
@@ -161,7 +188,7 @@ def prepare_output_and_logger(args):
         print("Tensorboard not available: not logging progress")
     return tb_writer
 
-def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_iterations, scene : Scene, renderFunc, renderArgs):
+def training_report(tb_writer, iteration, Ll1, loss, l1_loss, ce_loss, elapsed, testing_iterations, scene : Scene, renderFunc, renderArgs):
     if tb_writer:
         tb_writer.add_scalar('train_loss_patches/l1_loss', Ll1.item(), iteration)
         tb_writer.add_scalar('train_loss_patches/total_loss', loss.item(), iteration)
@@ -177,18 +204,26 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, elapsed, testing_i
             if config['cameras'] and len(config['cameras']) > 0:
                 l1_test = 0.0
                 psnr_test = 0.0
+                ce_test = 0.0
                 for idx, viewpoint in enumerate(config['cameras']):
-                    image = torch.clamp(renderFunc(viewpoint, scene.gaussians, *renderArgs,override_color=scene.gaussians.get_features)["render"], 0.0, 1.0)
+                    out = renderFunc(viewpoint, scene.gaussians, *renderArgs,override_color=scene.gaussians.get_features)
+                    image = torch.clamp(out["render"], 0.0, 1.0)
+                    segmentation = out["segmentation"]
                     gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
+                    gt_segmentation = viewpoint.original_semantic.cuda()
+
                     if tb_writer and (idx < 5):
                         tb_writer.add_images(config['name'] + "_view_{}/render".format(viewpoint.image_name), image[None], global_step=iteration)
                         if iteration == testing_iterations[0]:
                             tb_writer.add_images(config['name'] + "_view_{}/ground_truth".format(viewpoint.image_name), gt_image[None], global_step=iteration)
                     l1_test += l1_loss(image, gt_image).mean().double()
                     psnr_test += psnr(image, gt_image).mean().double()
+                    ce_test += ce_loss(segmentation.permute(1,2,0).flatten(0,1), gt_segmentation.flatten().long())
                 psnr_test /= len(config['cameras'])
-                l1_test /= len(config['cameras'])          
-                print("\n[ITER {}] Evaluating {}: L1 {} PSNR {}".format(iteration, config['name'], l1_test, psnr_test))
+                l1_test /= len(config['cameras']) 
+                ce_test /= len(config['cameras']) 
+
+                print("\n[ITER {}] Evaluating {}: L1 {:.3f} PSNR {:.3f} CE {:.3f}".format(iteration, config['name'], l1_test, psnr_test, ce_test))
                 if tb_writer:
                     tb_writer.add_scalar(config['name'] + '/loss_viewpoint - l1_loss', l1_test, iteration)
                     tb_writer.add_scalar(config['name'] + '/loss_viewpoint - psnr', psnr_test, iteration)
