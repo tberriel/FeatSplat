@@ -48,15 +48,22 @@ def getTopClassesMapping(file_name: str ="/media/tberriel/My_Book_2/ScanNetpp/de
     """
     data = loadClassesMapping()
     data.sort(key=lambda row:row["count"])
-    data =  data[-n:] if n > 0 else data
+    #data =  data[-n:] if n > 0 else data
     data_dict = {"idx":[],"class":[],"count":[]}
-    for line in data:
+    for line in data[-n:]:
         data_dict["idx"].append(line["idx"])
         data_dict["class"].append(line["class"])
         data_dict["count"].append(line["count"])
+    if n>0:
+        count_rest = 0
+        for line in data[:-n]:
+            count_rest += line["count"] 
+        data_dict["idx"].append(-1)
+        data_dict["class"].append("unknown")
+        data_dict["count"].append(count_rest)
     return data_dict
 
-def loadSemanticClasses(n = 31, load_file = True):
+def loadSemanticClasses(n = 32, load_file = True):
     data = []
     weights = []
     map_file ="/media/tberriel/My_Book_2/ScanNetpp/decoded_data_nerfstudio/"+str(n)+"_most_common_classes.csv"
@@ -69,12 +76,15 @@ def loadSemanticClasses(n = 31, load_file = True):
                 row["count"] = int(row["count"])
                 
                 data.append(row) 
+
                 weights.append(1/row["count"])
+            weights = np.array(weights)
+            weights[-1] = weights[:-1].mean()
     else:
         file_sem_clases ="/media/tberriel/My_Book_2/ScanNetpp/data/metadata/semantic_classes.txt"
         colours = colors.ListedColormap(plt.cm.tab20b.colors + plt.cm.tab20c.colors , name="tab20_extended")
         cmap = colours(np.linspace(0, 1, n))  # Obtain RGB colour map
-        top_classes = getTopClassesMapping(n=n)
+        top_classes = getTopClassesMapping(n=n-1) # the nth class will be "unknown"
         i_col = 0
         with open(file_sem_clases, "r") as file:
             lines = file.readlines()
@@ -93,7 +103,10 @@ def loadSemanticClasses(n = 31, load_file = True):
 
                     # Store row in the list
                     data.append(row) 
-        if False:
+            data.append({"idx":-1,"class":"unknown", "rgb":[0,0,0], "count":top_classes["count"][-1]})
+            avg_weight = float(np.array(weights).mean())
+            weights.append(avg_weight)#1/top_classes["count"][-1])
+        if True:
             file_path = "/media/tberriel/My_Book_2/ScanNetpp/decoded_data_nerfstudio/"+str(n)+"_most_common_classes.csv"
             new_data = []
             for row in data:
@@ -106,7 +119,7 @@ def loadSemanticClasses(n = 31, load_file = True):
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
                 writer.writerows(data)   
-    return data, torch.tensor(weights)
+    return data, torch.tensor(weights).float()
 
 def mapClassesToRGB(seg_image, map_data):
     """
@@ -128,12 +141,14 @@ def mapClassesToRGB(seg_image, map_data):
     legend_classes = {"labels":[],"rgb":[]}
     for i in range(seg_image.max()+1):
         if (seg_image==i).sum()>0:
-            if i >= len(map_data):
-                rgb_image = torch.where(seg_image == seg_image.max(), torch.tensor([1,1,1],device=device), rgb_image)
+            if False:#i >= len(map_data):
+                rgb_image = torch.where(seg_image == seg_image.max(), torch.tensor([0,0,0],device=device), rgb_image)
+                legend_classes["labels"].append("unknown")
+                legend_classes["rgb"].append([0,0,0])
             else:
                 legend_classes["labels"].append(map_data[i]["class"])
                 legend_classes["rgb"].append(map_data[i]["rgb"])
-            rgb_image = torch.where(seg_image == i, torch.tensor(map_data[i]["rgb"],device=device), rgb_image)
+                rgb_image = torch.where(seg_image == i, torch.tensor(map_data[i]["rgb"],device=device), rgb_image)
     
     return rgb_image.cpu().numpy(), legend_classes
 

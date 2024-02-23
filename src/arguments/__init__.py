@@ -49,12 +49,12 @@ class ModelParams(ParamGroup):
         self.sh_degree = 0
         self.n_latents = 64
         self.n_classes = 32#1581
+        self.weighted_ce_loss = False
         self._source_path = ""
         self._model_path = ""
         self._images = "images"
         self._resolution = -1
         self._white_background = False
-        self._weighted_ce_loss = False
         self.data_device = "cuda"
         self.eval = False
         super().__init__(parser, "Loading Parameters", sentinel)

@@ -187,19 +187,14 @@ def loadClasses(n = 31):
             data.append(row)
     return data
 
-def filtered_semantic_classes(sem_img, classes, no_class = 31):
+def filtered_semantic_classes(sem_img, classes, unknown_class = 31):
     sem_img = np.array(sem_img)
-    filtered_img = np.zeros_like(sem_img)+31
-    cum_sum = 0
+    filtered_img = np.ones_like(sem_img)*unknown_class
     for i, class_i in enumerate(classes):
-        #if ((sem_img==int(class_i["idx"])).sum()>0):
-            #cum_sum += (sem_img==i).sum()
-            #print("{}:{}:{}".format(class_i["idx"], class_i["class"], (sem_img==i).sum()))
-            #filtered_img[sem_img == int(class_i["idx"])] = i
         filtered_img = np.where(sem_img == int(class_i["idx"]), i, filtered_img)
     return Image.fromarray(filtered_img, "RGB")
 
-def readCamerasFromTransforms(path, transformsfile, white_background, extension=".png"):
+def readCamerasFromTransforms(path, transformsfile, white_background, extension=".png", n_classes = 32):
     cam_infos = []
 
     with open(os.path.join(path, transformsfile)) as json_file:
@@ -207,7 +202,7 @@ def readCamerasFromTransforms(path, transformsfile, white_background, extension=
         fovx = contents["camera_angle_x"]
 
         frames = contents["frames"]
-        selected_classes = loadClasses()
+        selected_classes = loadClasses(n = n_classes)
         for idx, frame in enumerate(frames):
             cam_name = os.path.join(path, frame["file_path"] + extension)
 
@@ -227,7 +222,7 @@ def readCamerasFromTransforms(path, transformsfile, white_background, extension=
 
             semantic_image_path = os.path.join(path,"semantic",frame["file_path"][:-4]+".png")
             raw_semantic_image = Image.open(semantic_image_path)
-            semantic_image = filtered_semantic_classes(raw_semantic_image, selected_classes)
+            semantic_image = filtered_semantic_classes(raw_semantic_image, selected_classes, unknown_class = n_classes-1)
 
 
             im_data = np.array(image.convert("RGBA"))

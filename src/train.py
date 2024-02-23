@@ -69,9 +69,9 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     iter_end = torch.cuda.Event(enable_timing = True)
 
     if dataset.n_classes>0:
-        data_mapping, weights = loadSemanticClasses(n = dataset.n_classes-1)
+        data_mapping, weights = loadSemanticClasses(n = dataset.n_classes)
         fig, ax = plt.subplots()
-        ce_loss = torch.nn.CrossEntropyLoss(weight=weights if dataset.weighted_ce_loss else None)# In dataloading set 31 as no class, that number shouldn't be ignored as to give a way to the network to label thinks it does not recognizes
+        ce_loss = torch.nn.CrossEntropyLoss(weight=weights.cuda() if dataset.weighted_ce_loss else None)# In dataloading set 31 as no class, that number shouldn't be ignored as to give a way to the network to label thinks it does not recognizes
     viewpoint_stack = None
     ema_loss_for_log = 0.0
     progress_bar = tqdm(range(first_iter, opt.iterations), desc="Training progress")
@@ -124,7 +124,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         
         gt_image = viewpoint_cam.original_image.cuda()
         Ll1 = l1_loss(image, gt_image)
-        loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image)) + Lce*0.1
+        loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image)) + Lce
         loss.backward()
 
         iter_end.record()
