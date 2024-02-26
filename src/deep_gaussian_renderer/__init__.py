@@ -15,7 +15,7 @@ from diff_deep_gaussian_rasterization import GaussianRasterizationSettings, Gaus
 from scene.gaussian_model import GaussianModel
 from utils.sh_utils import eval_sh
 
-def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, scaling_modifier = 1.0, override_color = None):
+def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, scaling_modifier = 1.0, override_color = None, filter_gaussians = False):
     """
     Render the scene. 
     
@@ -50,6 +50,8 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
 
     rasterizer = GaussianRasterizer(raster_settings=raster_settings)
 
+
+
     means3D = pc.get_xyz
     means2D = screenspace_points
     opacity = pc.get_opacity
@@ -81,6 +83,16 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     else:
         colors_precomp = override_color
 
+    if filter_gaussians:
+        mean3D_local = torch.einsum("mn,dn->dm",viewpoint_camera.world_view_transform, torch.hstack((means3D,torch.ones((means3D.shape[0],1), device = "cuda"))))
+        visible_mask = mean3D_local[:,2]>0 # if Z coordinate is negative axis it is not going to be seen by the camera 
+        means3D = means3D[visible_mask]
+        means2D = means2D[visible_mask]
+        colors_precomp = colors_precomp[visible_mask]
+        opacity = opacity[visible_mask]
+        scales = scales[visible_mask]
+        rotations = rotations[visible_mask]
+
     # Rasterize visible Gaussians to image, obtain their radii (on screen). 
     latent_image, radii = rasterizer(
         means3D = means3D,
@@ -93,7 +105,10 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
         cov3D_precomp = cov3D_precomp)
     
     rendered_image, segmentation_image = pc.nn_forward(latent_image)
-
+    if filter_gaussians:
+        radii_full = torch.zeros_like(visible_mask, dtype=torch.int32)
+        radii_full[visible_mask] = radii
+        radii = radii_full
     # Those Gaussians that were frustum culled or had a radius of 0 were not visible.
     # They will be excluded from value updates used in the splitting criteria.
     return {"render": rendered_image,
