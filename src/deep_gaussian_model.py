@@ -127,7 +127,7 @@ class DeepGaussianModel(GaussianModel):
         """
         rendered_image = self.cnn(latent_features)
         if self.cnn_seg is not None:
-            segmentation_image = nn.functional.softmax(self.cnn_seg(latent_features), dim=0)
+            segmentation_image = self.cnn_seg(latent_features)
         else:
             segmentation_image = None
         return rendered_image, segmentation_image
@@ -175,12 +175,6 @@ class DeepGaussianModel(GaussianModel):
             {'params': [self._rotation], 'lr': training_args.rotation_lr, "name": "rotation"},
             {'params': [x for x in self.cnn.parameters()], 'lr': training_args.feature_lr, "name": "cnn"}
         ]
-        #for i,param in enumerate(self.cnn.parameters()):
-        #    l.append({'params': [param], 'lr': training_args.feature_lr, "name": "cnn_"+str(i)})
-        """
-        for i,param in enumerate(self.cnn.parameter()):
-            l.append({'params':param, 'lr': training_args.feature_lr, "name": "cnn_"+str(i)}) 
-        """
         self.optimizer = torch.optim.Adam(l, lr=0.0, eps=1e-15)
         self.xyz_scheduler_args = get_expon_lr_func(lr_init=training_args.position_lr_init*self.spatial_lr_scale,
                                                     lr_final=training_args.position_lr_final*self.spatial_lr_scale,
