@@ -13,6 +13,7 @@ import os
 import torch
 from random import randint
 from utils.loss_utils import l1_loss, ssim
+from torchmetrics.classification import MulticlassJaccardIndex
 from deep_gaussian_renderer import render, network_gui
 import sys
 from scene import Scene
@@ -72,6 +73,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         data_mapping, weights = loadSemanticClasses(n = dataset.n_classes)
         fig, ax = plt.subplots()
         ce_loss = torch.nn.CrossEntropyLoss(weight=weights.cuda() if dataset.weighted_ce_loss else None)# In dataloading set 31 as no class, that number shouldn't be ignored as to give a way to the network to label thinks it does not recognizes
+        mIoU = MulticlassJaccardIndex(dataset.n_classes)
     viewpoint_stack = None
     ema_loss_for_log = 0.0
     progress_bar = tqdm(range(first_iter, opt.iterations), desc="Training progress")
@@ -117,7 +119,6 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         # Loss
         if segmentation is not None:
             gt_segmentation = viewpoint_cam.original_semantic.cuda()
-            #gt_segmentation= torch.where(gt_segmentation>32, 65535, gt_segmentation)
             Lce = ce_loss(segmentation.permute(1,2,0).flatten(0,1), gt_segmentation.flatten().long())
         else: 
             Lce = 0.
@@ -139,7 +140,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 progress_bar.close()
 
             # Log and save
-            training_report(tb_writer, iteration, Ll1, loss, l1_loss, ce_loss, iter_start.elapsed_time(iter_end), testing_iterations, scene, render, (pipe, background))
+            training_report(tb_writer, iteration, Ll1, loss, l1_loss, ce_loss, mIoU, iter_start.elapsed_time(iter_end), testing_iterations, scene, render, (pipe, background))
             if (iteration in saving_iterations):
                 print("\n[ITER {}] Saving Gaussians".format(iteration))
                 scene.save(iteration)
@@ -188,7 +189,7 @@ def prepare_output_and_logger(args):
         print("Tensorboard not available: not logging progress")
     return tb_writer
 
-def training_report(tb_writer, iteration, Ll1, loss, l1_loss, ce_loss, elapsed, testing_iterations, scene : Scene, renderFunc, renderArgs):
+def training_report(tb_writer, iteration, Ll1, loss, l1_loss, ce_loss, mIoU, elapsed, testing_iterations, scene : Scene, renderFunc, renderArgs):
     if tb_writer:
         tb_writer.add_scalar('train_loss_patches/l1_loss', Ll1.item(), iteration)
         tb_writer.add_scalar('train_loss_patches/total_loss', loss.item(), iteration)
@@ -205,6 +206,7 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, ce_loss, elapsed, 
                 l1_test = 0.0
                 psnr_test = 0.0
                 ce_test = 0.0
+                mIoU_test = 0.0
                 for idx, viewpoint in enumerate(config['cameras']):
                     out = renderFunc(viewpoint, scene.gaussians, *renderArgs,override_color=scene.gaussians.get_features)
                     image = torch.clamp(out["render"], 0.0, 1.0)
@@ -219,14 +221,18 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, ce_loss, elapsed, 
                     l1_test += l1_loss(image, gt_image).mean().double()
                     psnr_test += psnr(image, gt_image).mean().double()
                     ce_test += ce_loss(segmentation.permute(1,2,0).flatten(0,1), gt_segmentation.flatten().long())
+                    mIoU_test += mIoU(segmentation.permute(1,2,0).flatten(0,1), gt_segmentation.flatten().long())
                 psnr_test /= len(config['cameras'])
                 l1_test /= len(config['cameras']) 
                 ce_test /= len(config['cameras']) 
+                mIoU_test /= len(config['cameras'])
 
-                print("\n[ITER {}] Evaluating {}: L1 {:.3f} PSNR {:.3f} CE {:.3f}".format(iteration, config['name'], l1_test, psnr_test, ce_test))
+                print("\n[ITER {}] Evaluating {}: L1 {:.3f} PSNR {:.3f} CE {:.3f} mIOU {:.3f}".format(iteration, config['name'], l1_test, psnr_test, ce_test, mIoU_test))
                 if tb_writer:
                     tb_writer.add_scalar(config['name'] + '/loss_viewpoint - l1_loss', l1_test, iteration)
                     tb_writer.add_scalar(config['name'] + '/loss_viewpoint - psnr', psnr_test, iteration)
+                    tb_writer.add_scalar(config['name'] + '/loss_viewpoint - ce_loss', ce_test, iteration)
+                    tb_writer.add_scalar(config['name'] + '/loss_viewpoint - mIoU', mIoU_test, iteration)
 
         if tb_writer:
             tb_writer.add_histogram("scene/opacity_histogram", scene.gaussians.get_opacity, iteration)
@@ -247,7 +253,7 @@ if __name__ == "__main__":
     parser.add_argument("--test_iterations", nargs="+", type=int, default=[7_000, 30_000])
     parser.add_argument("--save_iterations", nargs="+", type=int, default=[7_000, 30_000])
     parser.add_argument("--quiet", action="store_true")
-    parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[])
+    parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[7_000, 30_000])
     parser.add_argument("--start_checkpoint", type=str, default = None)
     args = parser.parse_args(sys.argv[1:])
     args.save_iterations.append(args.iterations)
