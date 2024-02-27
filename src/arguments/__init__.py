@@ -47,8 +47,8 @@ class ParamGroup:
 class ModelParams(ParamGroup): 
     def __init__(self, parser, sentinel=False):
         self.sh_degree = 0
-        self.n_latents = 64
-        self.n_classes = 32#1581
+        self.n_latents = 32
+        self.n_classes = 32
         self.weighted_ce_loss = False
         self._source_path = ""
         self._model_path = ""
@@ -84,6 +84,7 @@ class OptimizationParams(ParamGroup):
         self.rotation_lr = 0.001
         self.percent_dense = 0.01
         self.lambda_dssim = 0.2
+        self.lambda_sem = 1.0
         self.densification_interval = 100
         self.opacity_reset_interval = 3000
         self.densify_from_iter = 500

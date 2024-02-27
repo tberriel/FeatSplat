@@ -22,9 +22,8 @@ import uuid
 from tqdm import tqdm
 from utils.image_utils import psnr
 from argparse import ArgumentParser, Namespace
-from modules.gaussian_splatting.arguments import PipelineParams, OptimizationParams
 from deep_gaussian_model import DeepGaussianModel
-from arguments import ModelParams
+from arguments import ModelParams, PipelineParams, OptimizationParams
 from segmentation import mapClassesToRGB, loadSemanticClasses
 try:
     from torch.utils.tensorboard import SummaryWriter
@@ -73,7 +72,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         data_mapping, weights = loadSemanticClasses(n = dataset.n_classes)
         fig, ax = plt.subplots()
         ce_loss = torch.nn.CrossEntropyLoss(weight=weights.cuda() if dataset.weighted_ce_loss else None)# In dataloading set 31 as no class, that number shouldn't be ignored as to give a way to the network to label thinks it does not recognizes
-        mIoU = MulticlassJaccardIndex(dataset.n_classes)
+        mIoU = MulticlassJaccardIndex(dataset.n_classes).cuda()
     viewpoint_stack = None
     ema_loss_for_log = 0.0
     progress_bar = tqdm(range(first_iter, opt.iterations), desc="Training progress")
@@ -125,7 +124,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         
         gt_image = viewpoint_cam.original_image.cuda()
         Ll1 = l1_loss(image, gt_image)
-        loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image)) + Lce
+        loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image)) + Lce*opt.lambda_sem
         loss.backward()
 
         iter_end.record()
@@ -206,7 +205,7 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, ce_loss, mIoU, ela
                 l1_test = 0.0
                 psnr_test = 0.0
                 ce_test = 0.0
-                mIoU_test = 0.0
+                #mIoU_test = 0.0
                 for idx, viewpoint in enumerate(config['cameras']):
                     out = renderFunc(viewpoint, scene.gaussians, *renderArgs,override_color=scene.gaussians.get_features)
                     image = torch.clamp(out["render"], 0.0, 1.0)
@@ -221,18 +220,18 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, ce_loss, mIoU, ela
                     l1_test += l1_loss(image, gt_image).mean().double()
                     psnr_test += psnr(image, gt_image).mean().double()
                     ce_test += ce_loss(segmentation.permute(1,2,0).flatten(0,1), gt_segmentation.flatten().long())
-                    mIoU_test += mIoU(segmentation.permute(1,2,0).flatten(0,1), gt_segmentation.flatten().long())
+                    #mIoU_test += mIoU(segmentation.permute(1,2,0).flatten(0,1), gt_segmentation.flatten().long())
                 psnr_test /= len(config['cameras'])
                 l1_test /= len(config['cameras']) 
                 ce_test /= len(config['cameras']) 
-                mIoU_test /= len(config['cameras'])
+                #mIoU_test /= len(config['cameras'])
 
-                print("\n[ITER {}] Evaluating {}: L1 {:.3f} PSNR {:.3f} CE {:.3f} mIOU {:.3f}".format(iteration, config['name'], l1_test, psnr_test, ce_test, mIoU_test))
+                print("\n[ITER {}] Evaluating {}: L1 {:.3f} PSNR {:.3f} CE {:.3f} mIOU {:.3f}".format(iteration, config['name'], l1_test, psnr_test, ce_test, 0.0))
                 if tb_writer:
                     tb_writer.add_scalar(config['name'] + '/loss_viewpoint - l1_loss', l1_test, iteration)
                     tb_writer.add_scalar(config['name'] + '/loss_viewpoint - psnr', psnr_test, iteration)
                     tb_writer.add_scalar(config['name'] + '/loss_viewpoint - ce_loss', ce_test, iteration)
-                    tb_writer.add_scalar(config['name'] + '/loss_viewpoint - mIoU', mIoU_test, iteration)
+                    #tb_writer.add_scalar(config['name'] + '/loss_viewpoint - mIoU', mIoU_test, iteration)
 
         if tb_writer:
             tb_writer.add_histogram("scene/opacity_histogram", scene.gaussians.get_opacity, iteration)
@@ -250,10 +249,10 @@ if __name__ == "__main__":
     parser.add_argument('--port', type=int, default=6009)
     parser.add_argument('--debug_from', type=int, default=-1)
     parser.add_argument('--detect_anomaly', action='store_true', default=False)
-    parser.add_argument("--test_iterations", nargs="+", type=int, default=[7_000, 30_000])
-    parser.add_argument("--save_iterations", nargs="+", type=int, default=[7_000, 30_000])
+    parser.add_argument("--test_iterations", nargs="+", type=int, default=[7_000, 30_000, 35000])
+    parser.add_argument("--save_iterations", nargs="+", type=int, default=[7_000, 30_000, 35000])
     parser.add_argument("--quiet", action="store_true")
-    parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[7_000, 30_000])
+    parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[7_000, 30_000, 35000])
     parser.add_argument("--start_checkpoint", type=str, default = None)
     args = parser.parse_args(sys.argv[1:])
     args.save_iterations.append(args.iterations)
