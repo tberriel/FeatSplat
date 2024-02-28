@@ -22,7 +22,7 @@ from argparse import ArgumentParser, Namespace
 from modules.gaussian_splatting.arguments import PipelineParams, OptimizationParams
 from deep_gaussian_model import DeepGaussianModel
 from arguments import ModelParams
-from segmentation import mapClassesToRGB, loadSemanticClasses
+from utils.seg_utils import mapClassesToRGB, loadSemanticClasses
 from keyboard import wait
 try:
     from torch.utils.tensorboard import SummaryWriter
@@ -63,7 +63,7 @@ def streaming(dataset, opt, pipe, checkpoint):
     background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
 
     if dataset.n_classes>0:
-        data_mapping = loadSemanticClasses()
+        data_mapping, _ = loadSemanticClasses()
         fig, ax = plt.subplots()
     with torch.no_grad():
         while True:     

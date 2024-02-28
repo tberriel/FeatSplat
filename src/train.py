@@ -24,7 +24,7 @@ from utils.image_utils import psnr
 from argparse import ArgumentParser, Namespace
 from deep_gaussian_model import DeepGaussianModel
 from arguments import ModelParams, PipelineParams, OptimizationParams
-from segmentation import mapClassesToRGB, loadSemanticClasses
+from utils.seg_utils import mapClassesToRGB, loadSemanticClasses
 try:
     from torch.utils.tensorboard import SummaryWriter
     TENSORBOARD_FOUND = True
