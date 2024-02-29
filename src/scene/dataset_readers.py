@@ -197,7 +197,7 @@ def filtered_semantic_classes(sem_img, classes, n_classes):
     filtered_img = np.ones_like(sem_img)*(n_classes-1)
     for i, class_i in enumerate(classes):
         filtered_img = np.where(sem_img == int(class_i["idx"]), i, filtered_img)
-    return Image.fromarray(filtered_img, "RGB")
+    return Image.fromarray(filtered_img)
 
 def readCamerasFromTransforms(path, transformsfile, white_background, extension=".png", n_classes = 32):
     cam_infos = []
