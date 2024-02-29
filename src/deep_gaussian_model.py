@@ -173,7 +173,8 @@ class DeepGaussianModel(GaussianModel):
             {'params': [self._opacity], 'lr': training_args.opacity_lr, "name": "opacity"},
             {'params': [self._scaling], 'lr': training_args.scaling_lr, "name": "scaling"},
             {'params': [self._rotation], 'lr': training_args.rotation_lr, "name": "rotation"},
-            {'params': [x for x in self.cnn.parameters()], 'lr': training_args.feature_lr, "name": "cnn"}
+            {'params': [x for x in self.cnn.parameters()], 'lr': training_args.feature_lr, "name": "cnn"},
+            {'params': [x for x in self.cnn_seg.parameters()], 'lr': training_args.feature_lr, "name": "cnn_seg"}
         ]
         self.optimizer = torch.optim.Adam(l, lr=0.0, eps=1e-15)
         self.xyz_scheduler_args = get_expon_lr_func(lr_init=training_args.position_lr_init*self.spatial_lr_scale,
@@ -220,6 +221,8 @@ class DeepGaussianModel(GaussianModel):
         PlyData([el]).write(path)
         cnn_path = os.path.join(os.path.split(path)[0],"cnn.ckpt")
         torch.save(self.cnn.state_dict(),cnn_path)
+        cnn_seg_path = os.path.join(os.path.split(path)[0],"cnn_seg.ckpt")
+        torch.save(self.cnn_seg.state_dict(),cnn_seg_path)
 
     def reset_opacity(self):
         opacities_new = inverse_sigmoid(torch.min(self.get_opacity, torch.ones_like(self.get_opacity)*0.01))
@@ -260,7 +263,9 @@ class DeepGaussianModel(GaussianModel):
         self._rotation = nn.Parameter(torch.tensor(rots, dtype=torch.float, device="cuda").requires_grad_(True))
 
         cnn_path = os.path.join(os.path.split(path)[0],"cnn.ckpt")
-        self.cnn.load_state_dict(torch.load(cnn_path))
+        self.cnn.load_state_dict(torch.load(cnn_seg_path))
+        cnn_seg_path = os.path.join(os.path.split(path)[0],"cnn_seg.ckpt")
+        self.cnn_seg.load_state_dict(torch.load(cnn_seg_path))
 
     def replace_tensor_to_optimizer(self, tensor, name):
         optimizable_tensors = {}
@@ -280,7 +285,7 @@ class DeepGaussianModel(GaussianModel):
     def _prune_optimizer(self, mask):
         optimizable_tensors = {}
         for group in self.optimizer.param_groups:
-            if group['name']=="cnn":
+            if group['name']=="cnn" or group['name']=="cnn_seg":
                 continue
             stored_state = self.optimizer.state.get(group['params'][0], None)
             if stored_state is not None:
@@ -315,7 +320,7 @@ class DeepGaussianModel(GaussianModel):
     def cat_tensors_to_optimizer(self, tensors_dict):
         optimizable_tensors = {}
         for group in self.optimizer.param_groups:
-            if group['name']=="cnn":
+            if group['name']=="cnn" or group['name']=="cnn_seg":
                 continue
             assert len(group["params"]) == 1
             extension_tensor = tensors_dict[group["name"]]
