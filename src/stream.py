@@ -32,8 +32,8 @@ except ImportError:
 
 import matplotlib.pyplot as plt
 # Function to plot the image
-def plot_seg_image(seg_image, data_mapping):
-  
+def plot_seg_image(seg_image, data_mapping, fig = 0):
+    plt.figure(fig)
     image, lgnd_classes = mapClassesToRGB(seg_image, data_mapping)
 
     # Create legend elements
@@ -64,6 +64,7 @@ def streaming(dataset, opt, pipe, checkpoint):
 
     if dataset.n_classes>0:
         data_mapping, _ = loadSemanticClasses()
+        plt.figure(0)
         fig, ax = plt.subplots()
     with torch.no_grad():
         while True:     
@@ -84,6 +85,36 @@ def streaming(dataset, opt, pipe, checkpoint):
 
                 except Exception as e:
                     network_gui.conn = None
+
+def streaming_gt(dataset, opt, pipe, checkpoint):
+    gaussians = DeepGaussianModel(dataset.sh_degree, dataset.n_latents, dataset.n_classes)
+    gaussians.training_setup(opt)
+    if checkpoint:
+        (model_params, first_iter) = torch.load(checkpoint)
+        gaussians.restore(model_params, opt)
+    scene = Scene(dataset, gaussians, load_iteration=30000)
+
+    bg_color = [0 for _ in range(gaussians.n_latents)] # Let's start with black background, ideally, background light could also be learnt as a latent vector
+    background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
+
+    if dataset.n_classes>0:
+        all_data_mapping, _ = loadSemanticClasses()
+        plt.figure(0)
+        fig, ax = plt.subplots(figsize=(9,6))
+    with torch.no_grad():
+        while True:     
+            train_cameras = scene.getTrainCameras().copy()
+            for cam in train_cameras:
+
+                net_image = torch.nn.functional.interpolate(cam.original_image.cuda().unsqueeze(0), (800,800)).squeeze(0)
+
+                if dataset.n_classes>0:
+                    plot_seg_image(cam.original_semantic.cuda().squeeze(0), all_data_mapping, fig=0)
+                plt.figure(1)
+                plt.imshow(net_image.permute(1,2,0).cpu().numpy())
+                plt.waitforbuttonpress()
+
+
 
 
 if __name__ == "__main__":
