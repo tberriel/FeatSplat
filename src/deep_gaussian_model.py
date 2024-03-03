@@ -54,10 +54,11 @@ class DeepGaussianModel(GaussianModel):
         self.cnn = nn.Sequential(
             nn.Conv2d(n_latents, n_latents*2,1, padding=0, padding_mode='reflect'),
             nn.SiLU(),
-            nn.Conv2d(n_latents*2,3, 1, padding=0, padding_mode='reflect'),
-            nn.Sigmoid()
+            nn.Conv2d(n_latents*2,3+n_classes, 1, padding=0, padding_mode='reflect'),
+            #nn.Sigmoid()
         ).cuda()
-        if n_classes >0:
+
+        if n_classes >0 and False:
             self.cnn_seg = nn.Sequential(
                 nn.Conv2d(n_latents, n_classes,1, padding=0, padding_mode='reflect')
             ).cuda()
@@ -129,7 +130,8 @@ class DeepGaussianModel(GaussianModel):
         if self.cnn_seg is not None:
             segmentation_image = self.cnn_seg(latent_features)
         else:
-            segmentation_image = None
+            segmentation_image = rendered_image[3:]
+            rendered_image = torch.sigmoid(rendered_image[:3])
         return rendered_image, segmentation_image
 
     def get_covariance(self, scaling_modifier = 1):
@@ -174,7 +176,7 @@ class DeepGaussianModel(GaussianModel):
             {'params': [self._scaling], 'lr': training_args.scaling_lr, "name": "scaling"},
             {'params': [self._rotation], 'lr': training_args.rotation_lr, "name": "rotation"},
             {'params': [x for x in self.cnn.parameters()], 'lr': training_args.feature_lr, "name": "cnn"},
-            {'params': [x for x in self.cnn_seg.parameters()], 'lr': training_args.feature_lr, "name": "cnn_seg"}
+            #{'params': [x for x in self.cnn_seg.parameters()], 'lr': training_args.feature_lr, "name": "cnn_seg"}
         ]
         self.optimizer = torch.optim.Adam(l, lr=0.0, eps=1e-15)
         self.xyz_scheduler_args = get_expon_lr_func(lr_init=training_args.position_lr_init*self.spatial_lr_scale,
@@ -221,8 +223,8 @@ class DeepGaussianModel(GaussianModel):
         PlyData([el]).write(path)
         cnn_path = os.path.join(os.path.split(path)[0],"cnn.ckpt")
         torch.save(self.cnn.state_dict(),cnn_path)
-        cnn_seg_path = os.path.join(os.path.split(path)[0],"cnn_seg.ckpt")
-        torch.save(self.cnn_seg.state_dict(),cnn_seg_path)
+        #cnn_seg_path = os.path.join(os.path.split(path)[0],"cnn_seg.ckpt")
+        #torch.save(self.cnn_seg.state_dict(),cnn_seg_path)
 
     def reset_opacity(self):
         opacities_new = inverse_sigmoid(torch.min(self.get_opacity, torch.ones_like(self.get_opacity)*0.01))
@@ -263,9 +265,9 @@ class DeepGaussianModel(GaussianModel):
         self._rotation = nn.Parameter(torch.tensor(rots, dtype=torch.float, device="cuda").requires_grad_(True))
 
         cnn_path = os.path.join(os.path.split(path)[0],"cnn.ckpt")
-        self.cnn.load_state_dict(torch.load(cnn_seg_path))
-        cnn_seg_path = os.path.join(os.path.split(path)[0],"cnn_seg.ckpt")
-        self.cnn_seg.load_state_dict(torch.load(cnn_seg_path))
+        self.cnn.load_state_dict(torch.load(cnn_path))
+        #cnn_seg_path = os.path.join(os.path.split(path)[0],"cnn_seg.ckpt")
+        #self.cnn_seg.load_state_dict(torch.load(cnn_seg_path))
 
     def replace_tensor_to_optimizer(self, tensor, name):
         optimizable_tensors = {}
