@@ -63,7 +63,7 @@ def streaming(dataset, opt, pipe, checkpoint):
     background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
 
     if dataset.n_classes>0:
-        data_mapping, _ = loadSemanticClasses()
+        data_mapping, _ = loadSemanticClasses(n = dataset.n_classes)
         plt.figure(0)
         fig, ax = plt.subplots()
     with torch.no_grad():
@@ -80,7 +80,7 @@ def streaming(dataset, opt, pipe, checkpoint):
                         net_image_bytes = memoryview((torch.clamp(net_image, min=0, max=1.0) * 255).byte().permute(1, 2, 0).contiguous().cpu().numpy())
                         if dataset.n_classes>0:
                             seg_image = out["segmentation"].argmax(0)
-                            plot_seg_image(seg_image, data_mapping)
+                            plot_seg_image(seg_image, data_mapping, fig=0)
                     network_gui.send(net_image_bytes, dataset.source_path)
 
                 except Exception as e:
@@ -98,7 +98,7 @@ def streaming_gt(dataset, opt, pipe, checkpoint):
     background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
 
     if dataset.n_classes>0:
-        all_data_mapping, _ = loadSemanticClasses()
+        all_data_mapping, _ = loadSemanticClasses(n = dataset.n_classes)
         plt.figure(0)
         fig, ax = plt.subplots(figsize=(9,6))
     with torch.no_grad():
