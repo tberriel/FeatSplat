@@ -14,6 +14,7 @@ import sys
 from datetime import datetime
 import numpy as np
 import random
+from PIL.Image import Resampling
 
 def inverse_sigmoid(x):
     return torch.log(x/(1-x))
@@ -27,7 +28,7 @@ def PILtoTorch(pil_image, resolution):
         return resized_image.unsqueeze(dim=-1).permute(2, 0, 1)
 
 def SemanticPILtoTorch(pil_image, resolution):
-    resized_image_PIL = pil_image.resize(resolution) # By default should use Nearest neighbour resampling
+    resized_image_PIL = pil_image.resize(resolution,resample=Resampling.NEAREST) # By default should use Nearest neighbour resampling
     resized_image = torch.from_numpy(np.array(resized_image_PIL))
     if len(resized_image.shape) == 3:
         return resized_image.permute(2, 0, 1)
