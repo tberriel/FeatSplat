@@ -4,8 +4,8 @@ import argparse
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Viewer script parameters")
-    parser.add_argument('model', type=str)
-    parser.add_argument('scenes', nargs="+", type=str, default=[])
+    parser.add_argument('--model', type=str)
+    parser.add_argument('--scenes', nargs="+", type=str, default=[])
     
     args = parser.parse_args()
     assert args.model in ["gaussian-splatting", "deep_splatting"]
