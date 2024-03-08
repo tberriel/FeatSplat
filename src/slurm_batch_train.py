@@ -35,7 +35,7 @@ if __name__ == "__main__":
             
         stdout_file = os.path.join(chkpt, "stdout.log")
         stderr_file = os.path.join(chkpt, "stderr.log")
-        print("Run {}: scene {}; model {}".format(n, scene))
+        print("Run {}: scene {}".format(n, scene))
             
         config_args = "-s {} -m {} --eval -r 1 --sh_degree {}".format(
             source,
