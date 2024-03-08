@@ -30,7 +30,7 @@ if __name__ == "__main__":
     os.chdir(model_path)
 
     for n, scene in enumerate(scenes):
-        source = os.path.join(base_path, "Scannnet_data",scene)
+        source = os.path.join(base_path, "Scannet_data",scene)
         chkpt = os.path.join(model_path, f"mymodels/scannet{chkpt_args}_{scene}/")
             
         stdout_file = os.path.join(chkpt, "stdout.log")
@@ -44,7 +44,7 @@ if __name__ == "__main__":
             )
         
         command = f"python {train_file} {config_args} "
-        os.mkdir(chkpt, exist_ok=True)
+        os.makedirs(chkpt, exist_ok=True)
         with open(stdout_file,'w') as out_file, open(stderr_file,'w') as err_file:
             subprocess.run("conda run -n deep_splatting  "+command,
                             shell=True,
