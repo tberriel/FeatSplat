@@ -67,7 +67,8 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
     iter_start = torch.cuda.Event(enable_timing = True)
     iter_end = torch.cuda.Event(enable_timing = True)
-
+    ce_loss = None
+    mIoU = None 
     if dataset.n_classes>0:
         data_mapping, weights = loadSemanticClasses(n = dataset.n_classes)
         #fig, ax = plt.subplots()
