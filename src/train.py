@@ -211,8 +211,10 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, ce_loss, mIoU, ela
                     out = renderFunc(viewpoint, scene.gaussians, *renderArgs,override_color=scene.gaussians.get_features)
                     image = torch.clamp(out["render"], 0.0, 1.0)
                     segmentation = out["segmentation"]
+                    
                     gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
-                    gt_segmentation = viewpoint.original_semantic.cuda()
+                    if segmentation is not None:
+                        gt_segmentation = viewpoint.original_semantic.cuda()
 
                     if tb_writer and (idx < 5):
                         tb_writer.add_images(config['name'] + "_view_{}/render".format(viewpoint.image_name), image[None], global_step=iteration)
@@ -220,18 +222,21 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, ce_loss, mIoU, ela
                             tb_writer.add_images(config['name'] + "_view_{}/ground_truth".format(viewpoint.image_name), gt_image[None], global_step=iteration)
                     l1_test += l1_loss(image, gt_image).mean().double()
                     psnr_test += psnr(image, gt_image).mean().double()
-                    ce_test += ce_loss(segmentation.permute(1,2,0).flatten(0,1), gt_segmentation.flatten().long())
+                    if segmentation is not None:
+                        ce_test += ce_loss(segmentation.permute(1,2,0).flatten(0,1), gt_segmentation.flatten().long())
                     #mIoU_test += mIoU(segmentation.permute(1,2,0).flatten(0,1), gt_segmentation.flatten().long())
                 psnr_test /= len(config['cameras'])
-                l1_test /= len(config['cameras']) 
-                ce_test /= len(config['cameras']) 
+                l1_test /= len(config['cameras'])
+                if segmentation is not None: 
+                    ce_test /= len(config['cameras']) 
                 #mIoU_test /= len(config['cameras'])
 
                 print("\n[ITER {}] Evaluating {}: L1 {:.3f} PSNR {:.3f} CE {:.3f} mIOU {:.3f}".format(iteration, config['name'], l1_test, psnr_test, ce_test, 0.0))
                 if tb_writer:
                     tb_writer.add_scalar(config['name'] + '/loss_viewpoint - l1_loss', l1_test, iteration)
                     tb_writer.add_scalar(config['name'] + '/loss_viewpoint - psnr', psnr_test, iteration)
-                    tb_writer.add_scalar(config['name'] + '/loss_viewpoint - ce_loss', ce_test, iteration)
+                    if segmentation is not None:
+                        tb_writer.add_scalar(config['name'] + '/loss_viewpoint - ce_loss', ce_test, iteration)
                     #tb_writer.add_scalar(config['name'] + '/loss_viewpoint - mIoU', mIoU_test, iteration)
 
         if tb_writer:

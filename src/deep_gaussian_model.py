@@ -133,6 +133,8 @@ class DeepGaussianModel(GaussianModel):
             else:
                 segmentation_image = rendered_image[3:]
                 rendered_image = torch.sigmoid(rendered_image[:3])
+        else:
+            segmentation_image = None
         return rendered_image, segmentation_image
 
     def get_covariance(self, scaling_modifier = 1):
