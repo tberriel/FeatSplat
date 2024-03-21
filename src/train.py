@@ -70,7 +70,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
     if dataset.n_classes>0:
         data_mapping, weights = loadSemanticClasses(n = dataset.n_classes)
-        fig, ax = plt.subplots()
+        #fig, ax = plt.subplots()
         ce_loss = torch.nn.CrossEntropyLoss(weight=weights.cuda() if dataset.weighted_ce_loss else None)# In dataloading set 31 as no class, that number shouldn't be ignored as to give a way to the network to label thinks it does not recognizes
         mIoU = MulticlassJaccardIndex(dataset.n_classes).cuda()
     viewpoint_stack = None

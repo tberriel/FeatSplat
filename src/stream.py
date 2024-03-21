@@ -65,7 +65,7 @@ def streaming(dataset, opt, pipe, checkpoint):
     if dataset.n_classes>0:
         data_mapping, _ = loadSemanticClasses(n = dataset.n_classes)
         plt.figure(0)
-        fig, ax = plt.subplots()
+        #fig, ax = plt.subplots()
     with torch.no_grad():
         while True:     
             if network_gui.conn == None:
@@ -93,9 +93,6 @@ def streaming_gt(dataset, opt, pipe, checkpoint):
         (model_params, first_iter) = torch.load(checkpoint)
         gaussians.restore(model_params, opt)
     scene = Scene(dataset, gaussians, load_iteration=30000)
-
-    bg_color = [0 for _ in range(gaussians.n_latents)] # Let's start with black background, ideally, background light could also be learnt as a latent vector
-    background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
 
     if dataset.n_classes>0:
         all_data_mapping, _ = loadSemanticClasses(n = dataset.n_classes)
