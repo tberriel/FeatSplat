@@ -50,7 +50,7 @@ class DeepGaussianModel(GaussianModel):
         self.optimizer = None
         self.percent_dense = 0
         self.spatial_lr_scale = 0
-
+        self.n_classes = n_classes
         self.cnn = nn.Sequential(
             nn.Conv2d(n_latents, n_latents*2,1, padding=0, padding_mode='reflect'),
             nn.SiLU(),
@@ -127,11 +127,12 @@ class DeepGaussianModel(GaussianModel):
         - Output is 3xHxW
         """
         rendered_image = self.cnn(latent_features)
-        if self.cnn_seg is not None:
-            segmentation_image = self.cnn_seg(latent_features)
-        else:
-            segmentation_image = rendered_image[3:]
-            rendered_image = torch.sigmoid(rendered_image[:3])
+        if self.n_classes > 0:            
+            if self.cnn_seg is not None:
+                segmentation_image = self.cnn_seg(latent_features)
+            else:
+                segmentation_image = rendered_image[3:]
+                rendered_image = torch.sigmoid(rendered_image[:3])
         return rendered_image, segmentation_image
 
     def get_covariance(self, scaling_modifier = 1):
