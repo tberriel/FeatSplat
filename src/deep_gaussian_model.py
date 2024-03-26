@@ -178,7 +178,7 @@ class DeepGaussianModel(GaussianModel):
             {'params': [self._opacity], 'lr': training_args.opacity_lr, "name": "opacity"},
             {'params': [self._scaling], 'lr': training_args.scaling_lr, "name": "scaling"},
             {'params': [self._rotation], 'lr': training_args.rotation_lr, "name": "rotation"},
-            {'params': [x for x in self.cnn.parameters()], 'lr': training_args.feature_lr, "name": "cnn"},
+            {'params': [x for x in self.cnn.parameters()], 'lr': training_args.mlp_lr, "name": "cnn"},
             #{'params': [x for x in self.cnn_seg.parameters()], 'lr': training_args.feature_lr, "name": "cnn_seg"}
         ]
         self.optimizer = torch.optim.Adam(l, lr=0.0, eps=1e-15)
