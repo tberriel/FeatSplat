@@ -104,7 +104,7 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
         rotations = rotations,
         cov3D_precomp = cov3D_precomp)
     
-    rendered_image, segmentation_image = pc.nn_forward(latent_image)
+    rendered_image, segmentation_image = pc.nn_forward(latent_image,viewpoint_camera.camera_center)
     if filter_gaussians:
         radii_full = torch.zeros_like(visible_mask, dtype=torch.int32)
         radii_full[visible_mask] = radii

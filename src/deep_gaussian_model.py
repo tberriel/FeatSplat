@@ -52,7 +52,7 @@ class DeepGaussianModel(GaussianModel):
         self.spatial_lr_scale = 0
         self.n_classes = n_classes
         self.cnn = nn.Sequential(
-            nn.Conv2d(n_latents, n_latents*2,1, padding=0, padding_mode='reflect'),
+            nn.Conv2d(n_latents+5, n_latents*2,1, padding=0, padding_mode='reflect'),
             nn.SiLU(),
             nn.Conv2d(n_latents*2,3+n_classes, 1, padding=0, padding_mode='reflect'),
             #nn.Sigmoid()
@@ -121,11 +121,19 @@ class DeepGaussianModel(GaussianModel):
     def get_opacity(self):
         return self.opacity_activation(self._opacity)
     
-    def nn_forward(self, latent_features):
+    def nn_forward(self, latent_features, camera_pos):
         """ 
         - Input is n_latentsxHxW
         - Output is 3xHxW
         """
+        _, h, w = latent_features.shape
+        camera_pos = camera_pos[...,None, None].repeat((1, h,w))
+        umap = torch.linspace(-1, 1, w, device = latent_features.device)
+        vmap = torch.linspace(-1, 1, h, device = latent_features.device)
+        umap, vmap = torch.meshgrid(umap, vmap, indexing='xy')
+        points_2d = torch.stack((umap, vmap), -1).float()
+
+        latent_features = torch.cat([latent_features,camera_pos, points_2d.permute(2,0,1)] )
         rendered_image = self.cnn(latent_features)
         if self.n_classes > 0:            
             if self.cnn_seg is not None:
