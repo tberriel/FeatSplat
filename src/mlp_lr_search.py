@@ -34,15 +34,16 @@ if not args.skip_training or not args.skip_rendering:
     args = parser.parse_args()
 
 if not args.skip_training:
-    for lr in lr_values:
-        for i in range(iterations):
+
+    for i in range(iterations):
+        for lr in lr_values:
             common_args = f" --quiet --eval --test_iterations -1 --n_classes {args.n_classes} --mlp_lr {lr}"
-    for scene in mipnerf360_outdoor_scenes:
-        source = args.mipnerf360 + "/" + scene
-        os.system("python src/train.py -s " + source + " -i images_4 -m " + args.output_path + "/" + scene+f"_sem{args.n_classes}_lr{lr}_{i}" + common_args)
-    for scene in deep_blending_scenes:
-        source = args.deepblending + "/" + scene
-        os.system("python src/train.py -s " + source + " -m " + args.output_path + "/" + scene+f"_sem{args.n_classes}_lr{lr}_{i}" + common_args)
+            for scene in mipnerf360_outdoor_scenes:
+                source = args.mipnerf360 + "/" + scene
+                os.system("python src/train.py -s " + source + " -i images_4 -m " + args.output_path + "/" + scene+f"_sem{args.n_classes}_lr{lr}_{i}" + common_args)
+            for scene in deep_blending_scenes:
+                source = args.deepblending + "/" + scene
+                os.system("python src/train.py -s " + source + " -m " + args.output_path + "/" + scene+f"_sem{args.n_classes}_lr{lr}_{i}" + common_args)
 
 if not args.skip_rendering:
     all_sources = []
