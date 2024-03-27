@@ -12,8 +12,8 @@
 import os
 from argparse import ArgumentParser
 
-mipnerf360_outdoor_scenes = ["bicycle"]
-deep_blending_scenes = ["playroom"]
+mipnerf360_outdoor_scenes = []
+deep_blending_scenes = ["playroom", "drjohnson"]
 
 parser = ArgumentParser(description="Full evaluation script parameters")
 parser.add_argument("--skip_training", action="store_true")
@@ -22,7 +22,7 @@ parser.add_argument("--skip_metrics", action="store_true")
 parser.add_argument("--output_path", default="./eval/lr_search/")
 parser.add_argument("--n_classes", default=0, type=int)
 args, _ = parser.parse_known_args()
-lr_values = [0.005,0.001,0.0005,0.0001]
+lr_values = [0.001,0.0005,0.0001,0.00001]
 iterations = 2
 all_scenes = []
 all_scenes.extend(mipnerf360_outdoor_scenes)
