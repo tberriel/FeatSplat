@@ -140,10 +140,10 @@ class DeepGaussianModel(GaussianModel):
                 segmentation_image = self.cnn_seg(latent_features)
             else:
                 segmentation_image = rendered_image[3:]
-                rendered_image = torch.sigmoid(rendered_image[:3])
+                rendered_image = rendered_image[:3]
         else:
             segmentation_image = None
-        return rendered_image, segmentation_image
+        return torch.sigmoid(rendered_image), segmentation_image
 
     def get_covariance(self, scaling_modifier = 1):
         return self.covariance_activation(self.get_scaling, scaling_modifier, self._rotation)

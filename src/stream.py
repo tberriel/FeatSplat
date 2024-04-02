@@ -19,7 +19,7 @@ from modules.gaussian_splatting.utils.general_utils import safe_state
 import uuid
 from tqdm import tqdm
 from argparse import ArgumentParser, Namespace
-from modules.gaussian_splatting.arguments import PipelineParams, OptimizationParams
+from arguments import PipelineParams, OptimizationParams
 from deep_gaussian_model import DeepGaussianModel
 from arguments import ModelParams
 from utils.seg_utils import mapClassesToRGB, loadSemanticClasses
@@ -54,7 +54,7 @@ def plot_seg_image(seg_image, data_mapping, fig = 0):
 def streaming(dataset, opt, pipe, checkpoint):
     gaussians = DeepGaussianModel(dataset.sh_degree, dataset.n_latents, dataset.n_classes)
     gaussians.training_setup(opt)
-    if checkpoint:
+    if checkpoint and False:
         (model_params, first_iter) = torch.load(checkpoint)
         gaussians.restore(model_params, opt)
     scene = Scene(dataset, gaussians, load_iteration=30000)
