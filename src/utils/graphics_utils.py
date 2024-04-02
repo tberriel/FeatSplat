@@ -75,3 +75,17 @@ def fov2focal(fov, pixels):
 
 def focal2fov(focal, pixels):
     return 2*math.atan(pixels/(2*focal))
+
+
+
+def compute_rays(projection_matrix, world_view_transform, image_width, image_height):
+    # Unproject rays to store local rays
+    umap = torch.linspace(0.5, image_width-0.5, image_width, device=projection_matrix.device)
+    vmap = torch.linspace(0.5, image_height-0.5, image_height, device=projection_matrix.device)
+    umap, vmap = torch.meshgrid(umap, vmap, indexing='xy')
+    points_2d = torch.stack((umap, vmap, torch.ones_like(umap, device=projection_matrix.device)), -1).float()
+    
+    local_rays = torch.einsum("ij,mnj -> mni",projection_matrix[:3,:3].inverse(),points_2d)
+    local_rays = torch.cat((local_rays,torch.ones(local_rays.shape[:-1],device=local_rays.device)[...,None]),dim=-1).float()
+    world_rays = torch.einsum("ij,mnj -> mni",world_view_transform, local_rays)
+    return  world_rays/world_rays[...,None].norm(dim=-1)

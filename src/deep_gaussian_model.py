@@ -54,7 +54,7 @@ class DeepGaussianModel(GaussianModel):
         self.cnn = nn.Sequential(
             nn.Conv2d(n_latents+5, n_latents*2,1, padding=0, padding_mode='reflect'),
             nn.SiLU(),
-            nn.Conv2d(n_latents*2,(sh_degree+1)**2+n_classes, 1, padding=0, padding_mode='reflect'),
+            nn.Conv2d(n_latents*2,3*(sh_degree+1)**2+n_classes, 1, padding=0, padding_mode='reflect'),
             #nn.Sigmoid()
         ).cuda()
 
@@ -121,7 +121,7 @@ class DeepGaussianModel(GaussianModel):
     def get_opacity(self):
         return self.opacity_activation(self._opacity)
     
-    def nn_forward(self, latent_features, camera_pos):
+    def nn_forward(self, latent_features, camera_pos, camera_rays):
         """ 
         - Input is n_latentsxHxW
         - Output is 3xHxW
@@ -139,11 +139,14 @@ class DeepGaussianModel(GaussianModel):
             if self.cnn_seg is not None:
                 segmentation_image = self.cnn_seg(latent_features)
             else:
-                segmentation_image = rendered_image[3:]
-                rendered_image = rendered_image[:3]
+                segmentation_image = rendered_image[3*(self.active_sh_degree+1)**2:]
+                rendered_image = rendered_image[:3*(self.active_sh_degree+1)**2]
         else:
             segmentation_image = None
-        return torch.sigmoid(rendered_image), segmentation_image
+
+        if self.active_sh_degree>0:
+            rendered_image = eval_sh(self.active_sh_degree,rendered_image.permute(1,2,0).unsqueeze(-1).reshape((h,w,3,(self.active_sh_degree+1)**2)), camera_rays)
+        return torch.sigmoid(rendered_image).permute(2,0,1), segmentation_image
 
     def get_covariance(self, scaling_modifier = 1):
         return self.covariance_activation(self.get_scaling, scaling_modifier, self._rotation)
