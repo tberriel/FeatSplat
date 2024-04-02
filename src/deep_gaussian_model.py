@@ -11,7 +11,7 @@ from utils.graphics_utils import BasicPointCloud
 from utils.general_utils import strip_symmetric, build_scaling_rotation
 
 from scene.gaussian_model import GaussianModel
-
+from utils.sh import eval_sh
 
 class DeepGaussianModel(GaussianModel):
 
@@ -54,7 +54,7 @@ class DeepGaussianModel(GaussianModel):
         self.cnn = nn.Sequential(
             nn.Conv2d(n_latents+5, n_latents*2,1, padding=0, padding_mode='reflect'),
             nn.SiLU(),
-            nn.Conv2d(n_latents*2,3+n_classes, 1, padding=0, padding_mode='reflect'),
+            nn.Conv2d(n_latents*2,(sh_degree+1)**2+n_classes, 1, padding=0, padding_mode='reflect'),
             #nn.Sigmoid()
         ).cuda()
 
