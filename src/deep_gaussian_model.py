@@ -40,6 +40,7 @@ class DeepGaussianModel(GaussianModel):
         self.n_latents = n_latents  
         self.n_classes = n_classes
         self.pixel_embedding = pixel_embedding
+        self.p_embedding  = None
         self._xyz = torch.empty(0)
         self.latent_features = torch.empty(0)
         self._scaling = torch.empty(0)
@@ -129,12 +130,13 @@ class DeepGaussianModel(GaussianModel):
         _, h, w = latent_features.shape
         if self.pixel_embedding:
             camera_pos = camera_pos[...,None, None].repeat((1, h,w))
-            umap = torch.linspace(-1, 1, w, device = latent_features.device)
-            vmap = torch.linspace(-1, 1, h, device = latent_features.device)
-            umap, vmap = torch.meshgrid(umap, vmap, indexing='xy')
-            points_2d = torch.stack((umap, vmap), -1).float()
-
-            latent_features = torch.cat([latent_features,camera_pos, points_2d.permute(2,0,1)] )
+            if self.p_embedding is None or (self.p_embedding.shape[1] != h or self.p_embedding.shape[2] != w):
+                umap = torch.linspace(-1, 1, w, device = latent_features.device)
+                vmap = torch.linspace(-1, 1, h, device = latent_features.device)
+                umap, vmap = torch.meshgrid(umap, vmap, indexing='xy')
+                points_2d = torch.stack((umap, vmap), -1).float()
+                self.p_embedding =  points_2d.permute(2,0,1)
+            latent_features = torch.cat([latent_features,camera_pos,self.p_embedding] )
         rendered_image = self.cnn(latent_features)
         if self.n_classes > 0:            
             if self.cnn_seg is not None:
