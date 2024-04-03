@@ -12,7 +12,7 @@
 import os
 from argparse import ArgumentParser
 
-mipnerf360_outdoor_scenes = ["bycicle"]
+mipnerf360_outdoor_scenes = ["bicycle"]
 deep_blending_scenes = []#["playroom", "drjohnson"]
 tanks_and_temples_scenes = ["train"]
 
