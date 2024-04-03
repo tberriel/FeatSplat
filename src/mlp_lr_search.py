@@ -23,6 +23,8 @@ parser.add_argument("--skip_metrics", action="store_true")
 parser.add_argument("--output_path", default="./eval/lr_search/")
 parser.add_argument("--n_classes", default=0, type=int)
 parser.add_argument("--iterations", default=1, type=int)
+parser.add_argument("--sh_degree", default=0, type=int)
+parser.add_argument("--pembedding", action="store_true")
 args, _ = parser.parse_known_args()
 lr_values = [0.001,0.0005,0.0001,0.00001]
 iterations = 2
@@ -41,7 +43,9 @@ if not args.skip_training:
 
     for i in range(args.iterations):
         for lr in lr_values:
-            common_args = f" --quiet --eval --test_iterations -1 --n_classes {args.n_classes} --mlp_lr {lr}"
+            common_args = f" --quiet --eval --test_iterations -1 --n_classes {args.n_classes} --mlp_lr {lr} --sh_degree {args.sh_degree}"
+            if args.pembedding:
+                common_args += " --pixel_embedding"
             for scene in mipnerf360_outdoor_scenes:
                 source = args.mipnerf360 + "/" + scene
                 os.system("python src/train.py -s " + source + " -i images_4 -m " + args.output_path + "/" + scene+f"_sem{args.n_classes}_lr{lr}_{i}" + common_args)
@@ -62,7 +66,9 @@ if not args.skip_rendering:
         all_sources.append(args.tanksandtemples + "/" + scene)
     for lr in lr_values:
         for i in range(args.iterations):
-            common_args = " --quiet --eval --skip_train"
+            common_args = " --quiet --eval --skip_train --n_classes {args.n_classes} --sh_degree {args.sh_degree}"
+            if args.pembedding:
+                common_args += " --pixel_embedding"
             for scene, source in zip(all_scenes, all_sources):
                 os.system("python src/render.py --iteration 7000 -s " + source + " -m " + args.output_path + "/" + scene+f"_sem{args.n_classes}_lr{lr}_{i}" + common_args)
                 os.system("python src/render.py --iteration 30000 -s " + source + " -m " + args.output_path + "/" + scene+f"_sem{args.n_classes}_lr{lr}_{i}" + common_args)
