@@ -11,7 +11,7 @@ from utils.graphics_utils import BasicPointCloud
 from utils.general_utils import strip_symmetric, build_scaling_rotation
 
 from scene.gaussian_model import GaussianModel
-from utils.sh import eval_sh
+from utils.sh_utils import eval_sh
 
 class DeepGaussianModel(GaussianModel):
 
@@ -55,7 +55,6 @@ class DeepGaussianModel(GaussianModel):
             nn.Conv2d(n_latents+5, n_latents*2,1, padding=0, padding_mode='reflect'),
             nn.SiLU(),
             nn.Conv2d(n_latents*2,3*(sh_degree+1)**2+n_classes, 1, padding=0, padding_mode='reflect'),
-            #nn.Sigmoid()
         ).cuda()
 
         if n_classes >0 and False:
@@ -146,7 +145,11 @@ class DeepGaussianModel(GaussianModel):
 
         if self.active_sh_degree>0:
             rendered_image = eval_sh(self.active_sh_degree,rendered_image.permute(1,2,0).unsqueeze(-1).reshape((h,w,3,(self.active_sh_degree+1)**2)), camera_rays)
-        return torch.sigmoid(rendered_image).permute(2,0,1), segmentation_image
+            #rendered_image = torch.clamp_min(rendered_image+0.5,0.0)
+            rendered_image = torch.sigmoid(rendered_image)
+        else:
+            rendered_image = torch.sigmoid(rendered_image)
+        return rendered_image.permute(2,0,1), segmentation_image
 
     def get_covariance(self, scaling_modifier = 1):
         return self.covariance_activation(self.get_scaling, scaling_modifier, self._rotation)
