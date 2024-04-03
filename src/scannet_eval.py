@@ -21,6 +21,7 @@ parser.add_argument("--skip_metrics", action="store_true")
 parser.add_argument("--output_path", default="./mymodels/dgx1/id_0005")
 parser.add_argument("--sh_degree", default=0, type=int)
 parser.add_argument("--iterations", default=4, type=int)
+parser.add_argument("--pembedding", action="store_true")
 args, _ = parser.parse_known_args()
 
 all_scenes = []
@@ -37,10 +38,12 @@ if not args.skip_rendering:
  
 
     common_args = f" --quiet --eval --skip_train --sh_degree {args.sh_degree}"
+    if args.pembedding:
+        common_args += " --pixel_embedding "
     for i in range (args.iterations):
         for n_classes, lambda_sem in [[0,0.0],[64,0.001]]:
             for scene, source in zip(all_scenes, all_sources):
-                #os.system("python src/render.py --iteration 7000 -s " + source + " -m " + args.output_path + "/" + f"scannet_sem{n_classes}_1h_{lambda_sem}_{scene}_{i}" + common_args)
+                os.system("python src/render.py --iteration 7000 -s " + source + " -m " + args.output_path + "/" + f"scannet_sem{n_classes}_1h_{lambda_sem}_{scene}_{i}" + common_args)
                 os.system("python src/render.py --iteration 30000 -s " + source + " -m " + args.output_path + "/" + f"scannet_sem{n_classes}_1h_{lambda_sem}_{scene}_{i}" + common_args)
 
 if not args.skip_metrics:

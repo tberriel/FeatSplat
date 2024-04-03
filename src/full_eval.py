@@ -24,6 +24,7 @@ parser.add_argument("--skip_metrics", action="store_true")
 parser.add_argument("--output_path", default="./eval")
 parser.add_argument("--n_classes", default=0, type=int)
 parser.add_argument("--sh_degree", default=0, type=int)
+parser.add_argument("--pembedding", action="store_true")
 args, _ = parser.parse_known_args()
 
 all_scenes = []
@@ -40,6 +41,8 @@ if not args.skip_training or not args.skip_rendering:
 
 if not args.skip_training:
     common_args = f" --quiet --eval --test_iterations -1 --n_classes {args.n_classes} --sh_degree {args.sh_degree}"
+    if args.pembedding:
+        common_args += " --pixel_embedding "
     for scene in mipnerf360_outdoor_scenes:
         source = args.mipnerf360 + "/" + scene
         os.system("python src/train.py -s " + source + " -i images_4 -m " + args.output_path + "/" + scene+f"_sem{args.n_classes}" + common_args)
@@ -64,7 +67,9 @@ if not args.skip_rendering:
     for scene in deep_blending_scenes:
         all_sources.append(args.deepblending + "/" + scene)
 
-    common_args = " --quiet --eval --skip_train"
+    common_args = " --quiet --eval --skip_train --n_classes {args.n_classes} --sh_degree {args.sh_degree}"
+    if args.pembedding:
+        common_args += " --pixel_embedding "
     for scene, source in zip(all_scenes, all_sources):
         os.system("python src/render.py --iteration 7000 -s " + source + " -m " + args.output_path + "/" + scene+f"_sem{args.n_classes}" + common_args)
         os.system("python src/render.py --iteration 30000 -s " + source + " -m " + args.output_path + "/" + scene+f"_sem{args.n_classes}" + common_args)

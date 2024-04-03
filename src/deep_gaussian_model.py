@@ -33,12 +33,13 @@ class DeepGaussianModel(GaussianModel):
         self.rotation_activation = torch.nn.functional.normalize
 
 
-    def __init__(self, sh_degree:int, n_latents : int, n_classes : int):
+    def __init__(self, sh_degree:int, n_latents : int, n_classes : int, pixel_embedding : bool):
         #super().__init__(sh_degree)
         self.active_sh_degree = sh_degree
         self.max_sh_degree = sh_degree
         self.n_latents = n_latents  
         self.n_classes = n_classes
+        self.pixel_embedding = pixel_embedding
         self._xyz = torch.empty(0)
         self.latent_features = torch.empty(0)
         self._scaling = torch.empty(0)
@@ -125,14 +126,15 @@ class DeepGaussianModel(GaussianModel):
         - Input is n_latentsxHxW
         - Output is 3xHxW
         """
-        _, h, w = latent_features.shape
-        camera_pos = camera_pos[...,None, None].repeat((1, h,w))
-        umap = torch.linspace(-1, 1, w, device = latent_features.device)
-        vmap = torch.linspace(-1, 1, h, device = latent_features.device)
-        umap, vmap = torch.meshgrid(umap, vmap, indexing='xy')
-        points_2d = torch.stack((umap, vmap), -1).float()
+        if self.pixel_embedding:
+            _, h, w = latent_features.shape
+            camera_pos = camera_pos[...,None, None].repeat((1, h,w))
+            umap = torch.linspace(-1, 1, w, device = latent_features.device)
+            vmap = torch.linspace(-1, 1, h, device = latent_features.device)
+            umap, vmap = torch.meshgrid(umap, vmap, indexing='xy')
+            points_2d = torch.stack((umap, vmap), -1).float()
 
-        latent_features = torch.cat([latent_features,camera_pos, points_2d.permute(2,0,1)] )
+            latent_features = torch.cat([latent_features,camera_pos, points_2d.permute(2,0,1)] )
         rendered_image = self.cnn(latent_features)
         if self.n_classes > 0:            
             if self.cnn_seg is not None:

@@ -36,7 +36,7 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
 
 def render_sets(dataset : ModelParams, iteration : int, pipeline : PipelineParams, skip_train : bool, skip_test : bool):
     with torch.no_grad():
-        gaussians = DeepGaussianModel(dataset.sh_degree, dataset.n_latents, dataset.n_classes)
+        gaussians = DeepGaussianModel(dataset.sh_degree, dataset.n_latents, dataset.n_classes, dataset.pixel_embedding)
         scene = Scene(dataset, gaussians, load_iteration=iteration, shuffle=False)
 
         bg_color = [0 for _ in range(gaussians.n_latents)] #if dataset.white_background else [1 for _ in range(gaussians.n_latents)]# Let's start with black background, ideally, background light could also be learnt as a latent vector
