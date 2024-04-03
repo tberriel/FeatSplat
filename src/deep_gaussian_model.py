@@ -53,7 +53,7 @@ class DeepGaussianModel(GaussianModel):
         self.spatial_lr_scale = 0
         self.n_classes = n_classes
         self.cnn = nn.Sequential(
-            nn.Conv2d(n_latents+5, n_latents*2,1, padding=0, padding_mode='reflect'),
+            nn.Conv2d(n_latents+5 if pixel_embedding else n_latents, n_latents*2,1, padding=0, padding_mode='reflect'),
             nn.SiLU(),
             nn.Conv2d(n_latents*2,3*(sh_degree+1)**2+n_classes, 1, padding=0, padding_mode='reflect'),
         ).cuda()

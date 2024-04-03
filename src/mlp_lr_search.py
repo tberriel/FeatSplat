@@ -66,7 +66,7 @@ if not args.skip_rendering:
         all_sources.append(args.tanksandtemples + "/" + scene)
     for lr in lr_values:
         for i in range(args.iterations):
-            common_args = " --quiet --eval --skip_train --n_classes {args.n_classes} --sh_degree {args.sh_degree}"
+            common_args = f" --quiet --eval --skip_train --n_classes {args.n_classes} --sh_degree {args.sh_degree}"
             if args.pembedding:
                 common_args += " --pixel_embedding"
             for scene, source in zip(all_scenes, all_sources):
