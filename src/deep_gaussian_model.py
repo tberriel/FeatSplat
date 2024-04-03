@@ -148,10 +148,10 @@ class DeepGaussianModel(GaussianModel):
         if self.active_sh_degree>0:
             rendered_image = eval_sh(self.active_sh_degree,rendered_image.permute(1,2,0).unsqueeze(-1).reshape((h,w,3,(self.active_sh_degree+1)**2)), camera_rays)
             #rendered_image = torch.clamp_min(rendered_image+0.5,0.0)
-            rendered_image = torch.sigmoid(rendered_image)
+            rendered_image = torch.sigmoid(rendered_image).permute(2,0,1)
         else:
             rendered_image = torch.sigmoid(rendered_image)
-        return rendered_image.permute(2,0,1), segmentation_image
+        return rendered_image, segmentation_image
 
     def get_covariance(self, scaling_modifier = 1):
         return self.covariance_activation(self.get_scaling, scaling_modifier, self._rotation)
