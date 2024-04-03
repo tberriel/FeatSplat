@@ -126,8 +126,8 @@ class DeepGaussianModel(GaussianModel):
         - Input is n_latentsxHxW
         - Output is 3xHxW
         """
+        _, h, w = latent_features.shape
         if self.pixel_embedding:
-            _, h, w = latent_features.shape
             camera_pos = camera_pos[...,None, None].repeat((1, h,w))
             umap = torch.linspace(-1, 1, w, device = latent_features.device)
             vmap = torch.linspace(-1, 1, h, device = latent_features.device)
