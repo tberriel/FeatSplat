@@ -11,8 +11,9 @@
 
 import os
 from argparse import ArgumentParser
+import json
 
-mipnerf360_outdoor_scenes = ["bicycle"]
+mipnerf360_outdoor_scenes =[]# ["bicycle"]
 deep_blending_scenes = []#["playroom", "drjohnson"]
 tanks_and_temples_scenes = ["train"]
 
@@ -22,7 +23,7 @@ parser.add_argument("--skip_rendering", action="store_true")
 parser.add_argument("--skip_metrics", action="store_true")
 parser.add_argument("--output_path", default="./eval/lr_search/")
 parser.add_argument("--n_classes", default=0, type=int)
-parser.add_argument("--iterations", default=1, type=int)
+parser.add_argument("--iterations", default=2, type=int)
 parser.add_argument("--sh_degree", default=0, type=int)
 parser.add_argument("--pembedding", action="store_true")
 args, _ = parser.parse_known_args()
@@ -81,3 +82,22 @@ if not args.skip_metrics:
                 scenes_string += "\"" + args.output_path + "/" + scene+f"_sem{args.n_classes}_lr{lr}_{i}" + "\" "
 
     os.system("python src/metrics.py -m " + scenes_string)
+for lr in lr_values:
+    for scene in all_scenes:
+        results = []
+        for i in range(args.iterations):
+
+            result_file = os.path.join(args.output_path, scene+f"_sem{args.n_classes}_lr{lr}_{i}", "results.json")
+            with open(result_file, "r") as f:
+                data = json.load(f)
+                ssim = data["ours_30000"]["SSIM"]
+                lpips = data["ours_30000"]["LPIPS"]
+                psnr = data["ours_30000"]["PSNR"]
+                results.append((ssim, lpips, psnr))
+
+        # Compute averages
+        avg_ssim = sum([result[0] for result in results]) / len(results)
+        avg_lpips = sum([result[1] for result in results]) / len(results)
+        avg_psnr = sum([result[2] for result in results]) / len(results)
+        print(f"{scene} with {lr} ")
+        print("Average SSIM: {:.3f}; PSNR: {:.3f}; LPIPS: {:.3f};".format(avg_ssim, avg_psnr, avg_lpips))
