@@ -109,9 +109,27 @@ if not args.skip_metrics:
 
 for scene in almost_all_scenes:
     results = []
+
+    result_file = os.path.join(args.output_path, scene+f"_sem{args.n_classes}", "results.json")
+    with open(result_file, "r") as f:
+        data = json.load(f)
+        ssim = data["ours_30000"]["SSIM"]
+        lpips = data["ours_30000"]["LPIPS"]
+        psnr = data["ours_30000"]["PSNR"]
+        results.append((ssim, lpips, psnr))
+
+    # Compute averages
+    avg_ssim = sum([result[0] for result in results]) / len(results)
+    avg_lpips = sum([result[1] for result in results]) / len(results)
+    avg_psnr = sum([result[2] for result in results]) / len(results)
+    print(f"{scene} ")
+    print("Average SSIM: {:.3f}; PSNR: {:.3f}; LPIPS: {:.3f};".format(avg_ssim, avg_psnr, avg_lpips))
+
+for scene in args.scannetpp_scenes:
+    results = []
     for i in range(args.iterations):
 
-        result_file = os.path.join(args.output_path, scene+f"_sem{args.n_classes}", "results.json")
+        result_file = os.path.join(args.output_path, "scannet/", scene+f"_sem{args.n_classes}_{i}", "results.json")
         with open(result_file, "r") as f:
             data = json.load(f)
             ssim = data["ours_30000"]["SSIM"]
@@ -123,5 +141,5 @@ for scene in almost_all_scenes:
     avg_ssim = sum([result[0] for result in results]) / len(results)
     avg_lpips = sum([result[1] for result in results]) / len(results)
     avg_psnr = sum([result[2] for result in results]) / len(results)
-    print(f"{scene} ")
+    print(f"Scannet {scene} ")
     print("Average SSIM: {:.3f}; PSNR: {:.3f}; LPIPS: {:.3f};".format(avg_ssim, avg_psnr, avg_lpips))
