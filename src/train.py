@@ -55,7 +55,7 @@ def plot_seg_image(seg_image, data_mapping):
 def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoint_iterations, checkpoint, debug_from, stream):
     first_iter = 0
     tb_writer = prepare_output_and_logger(dataset)
-    gaussians = DeepGaussianModel(dataset.sh_degree, dataset.n_latents, dataset.n_classes, dataset.pixel_embedding)
+    gaussians = DeepGaussianModel(0, dataset.n_latents, dataset.n_classes, dataset.pixel_embedding)
     scene = Scene(dataset, gaussians)
     gaussians.training_setup(opt)
     if checkpoint:
