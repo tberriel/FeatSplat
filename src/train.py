@@ -23,6 +23,7 @@ from tqdm import tqdm
 from utils.image_utils import psnr
 from argparse import ArgumentParser, Namespace
 from deep_gaussian_model import DeepGaussianModel
+from scene import GaussianModel
 from arguments import ModelParams, PipelineParams, OptimizationParams
 from utils.seg_utils import mapClassesToRGB, loadSemanticClasses
 try:
@@ -52,17 +53,25 @@ def plot_seg_image(seg_image, data_mapping):
     plt.draw()
     plt.pause(0.01)
 
-def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoint_iterations, checkpoint, debug_from, stream):
+def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoint_iterations, checkpoint, debug_from, stream, gaussian_splatting):
     first_iter = 0
     tb_writer = prepare_output_and_logger(dataset)
-    gaussians = DeepGaussianModel(0, dataset.n_latents, dataset.n_classes, dataset.pixel_embedding)
+    if gaussian_splatting:
+        assert dataset.n_classes == 0, "Gaussian Splatting does not predict semantics. Set n_classes to 0."
+        gaussians = GaussianModel(dataset.sh_degree)
+    else:
+        gaussians = DeepGaussianModel(0, dataset.n_latents, dataset.n_classes, dataset.pixel_embedding)
+
     scene = Scene(dataset, gaussians)
     gaussians.training_setup(opt)
     if checkpoint:
         (model_params, first_iter) = torch.load(checkpoint)
         gaussians.restore(model_params, opt)
 
-    bg_color = [0 for _ in range(gaussians.n_latents)] # Let's start with black background, ideally, background light could also be learnt as a latent vector
+    if gaussian_splatting:
+        bg_color = [1, 1, 1] if dataset.white_background else [0, 0, 0]
+    else:
+        bg_color = [0 for _ in range(gaussians.n_latents)] # Let's start with black background, ideally, background light could also be learnt as a latent vector
     background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
 
     iter_start = torch.cuda.Event(enable_timing = True)
@@ -102,6 +111,9 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         iter_start.record()
 
         gaussians.update_learning_rate(iteration)
+        # Every 1000 its we increase the levels of SH up to a maximum degree
+        if iteration % 1000 == 0 and gaussian_splatting:
+            gaussians.oneupSHdegree()
 
         # Pick a random Camera
         if not viewpoint_stack:
@@ -111,10 +123,15 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         # Render
         if (iteration - 1) == debug_from:
             pipe.debug = True
+        if gaussian_splatting:
+            bg = torch.rand((3), device="cuda") if opt.random_background else background
 
-        bg = torch.rand((gaussians.n_latents), device="cuda") if opt.random_background else background
+            render_pkg = render(viewpoint_cam, gaussians, pipe, bg)
+        else:
+            bg = torch.rand((gaussians.n_latents), device="cuda") if opt.random_background else background
 
-        render_pkg = render(viewpoint_cam, gaussians, pipe, bg, override_color=gaussians.get_features)
+            render_pkg = render(viewpoint_cam, gaussians, pipe, bg, override_color=gaussians.get_features)
+
         image, segmentation, viewspace_point_tensor, visibility_filter, radii = render_pkg["render"], render_pkg["segmentation"], render_pkg["viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
 
         # Loss
@@ -263,6 +280,7 @@ if __name__ == "__main__":
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[])
     parser.add_argument("--start_checkpoint", type=str, default = None)
+    parser.add_argument('--gaussian_splatting', action="store_true", default=False)
     args = parser.parse_args(sys.argv[1:])
     args.save_iterations.append(args.iterations)
     
@@ -275,7 +293,7 @@ if __name__ == "__main__":
     if args.stream:
         network_gui.init(args.ip, args.port)
     torch.autograd.set_detect_anomaly(args.detect_anomaly)
-    training(lp.extract(args), op.extract(args), pp.extract(args), args.test_iterations, args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from, args.stream)
+    training(lp.extract(args), op.extract(args), pp.extract(args), args.test_iterations, args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from, args.stream, args.gaussian_splatting)
 
     # All done
     print("\nTraining complete.")

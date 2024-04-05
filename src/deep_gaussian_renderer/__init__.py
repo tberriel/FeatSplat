@@ -12,10 +12,11 @@
 import torch
 import math
 from diff_deep_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
+from diff_gaussian_rasterization import GaussianRasterizer as BaseGaussianRasterizer
 from scene.gaussian_model import GaussianModel
 from utils.sh_utils import eval_sh
 
-def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, scaling_modifier = 1.0, override_color = None, filter_gaussians = False):
+def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, scaling_modifier = 1.0, override_color = None, filter_gaussians = False, features_splatting = False):
     """
     Render the scene. 
     
@@ -47,9 +48,10 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
         prefiltered=False,
         debug=pipe.debug
     )
-
-    rasterizer = GaussianRasterizer(raster_settings=raster_settings)
-
+    if features_splatting:
+        rasterizer = GaussianRasterizer(raster_settings=raster_settings)
+    else:
+        rasterizer = BaseGaussianRasterizer(raster_settings=raster_settings)
 
 
     means3D = pc.get_xyz
@@ -103,8 +105,11 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
         scales = scales,
         rotations = rotations,
         cov3D_precomp = cov3D_precomp)
-    
-    rendered_image, segmentation_image = pc.nn_forward(latent_image,viewpoint_camera.camera_center)
+    if features_splatting:
+        rendered_image, segmentation_image = pc.nn_forward(latent_image,viewpoint_camera.camera_center, None)
+    else:
+        rendered_image, segmentation_image = latent_image, None
+
     if filter_gaussians:
         radii_full = torch.zeros_like(visible_mask, dtype=torch.int32)
         radii_full[visible_mask] = radii
