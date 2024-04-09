@@ -50,6 +50,8 @@ class ModelParams(ParamGroup):
         self.n_latents = 32
         self.n_classes = 64
         self.pixel_embedding = False
+        self.pos_embedding = False
+        self.rot_embedding = False
         self.weighted_ce_loss = False
         self._source_path = ""
         self._model_path = ""

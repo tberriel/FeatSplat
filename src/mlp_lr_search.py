@@ -26,8 +26,10 @@ parser.add_argument("--n_classes", default=0, type=int)
 parser.add_argument("--iterations", default=2, type=int)
 parser.add_argument("--sh_degree", default=0, type=int)
 parser.add_argument("--pembedding", action="store_true")
+parser.add_argument("--cam_pos", action="store_true")
+parser.add_argument("--cam_rot", action="store_true")
 args, _ = parser.parse_known_args()
-lr_values = [0.001,0.0005,0.0001,0.00001]
+lr_values = [0.001,]
 iterations = 2
 all_scenes = []
 all_scenes.extend(mipnerf360_outdoor_scenes)
@@ -47,15 +49,19 @@ if not args.skip_training:
             common_args = f" --quiet --eval --test_iterations -1 --n_classes {args.n_classes} --mlp_lr {lr} --sh_degree {args.sh_degree}"
             if args.pembedding:
                 common_args += " --pixel_embedding"
+            if args.cam_pos:
+                common_args += " --pos_embedding"
+            if args.cam_rot:
+                common_args += " --rot_embedding"
             for scene in mipnerf360_outdoor_scenes:
                 source = args.mipnerf360 + "/" + scene
-                os.system("python src/train.py -s " + source + " -i images_4 -m " + args.output_path + "/" + scene+f"_sem{args.n_classes}_lr{lr}_{i}" + common_args)
+                os.system("python src/train.py -s " + source + " -i images_4 -m " + args.output_path + "/" + scene+f"_lr{lr}_{i}" + common_args)
             for scene in deep_blending_scenes:
                 source = args.deepblending + "/" + scene
-                os.system("python src/train.py -s " + source + " -m " + args.output_path + "/" + scene+f"_sem{args.n_classes}_lr{lr}_{i}" + common_args)
+                os.system("python src/train.py -s " + source + " -m " + args.output_path + "/" + scene+f"_lr{lr}_{i}" + common_args)
             for scene in tanks_and_temples_scenes:
                 source = args.tanksandtemples + "/" + scene
-                os.system("python src/train.py -s " + source + " -m " + args.output_path + "/" + scene+f"_sem{args.n_classes}_lr{lr}_{i}" + common_args)
+                os.system("python src/train.py -s " + source + " -m " + args.output_path + "/" + scene+f"_lr{lr}_{i}" + common_args)
 
 if not args.skip_rendering:
     all_sources = []
@@ -70,6 +76,10 @@ if not args.skip_rendering:
             common_args = f" --quiet --eval --skip_train --n_classes {args.n_classes} --sh_degree {args.sh_degree}"
             if args.pembedding:
                 common_args += " --pixel_embedding"
+            if args.cam_pos:
+                common_args += " --pos_embedding"
+            if args.cam_rot:
+                common_args += " --rot_embedding"
             for scene, source in zip(all_scenes, all_sources):
                 os.system("python src/render.py --iteration 7000 -s " + source + " -m " + args.output_path + "/" + scene+f"_sem{args.n_classes}_lr{lr}_{i}" + common_args)
                 os.system("python src/render.py --iteration 30000 -s " + source + " -m " + args.output_path + "/" + scene+f"_sem{args.n_classes}_lr{lr}_{i}" + common_args)

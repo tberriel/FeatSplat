@@ -89,3 +89,21 @@ def compute_rays(projection_matrix, T_world_camera, image_width, image_height):
     local_rays = torch.cat((local_rays,torch.ones(local_rays.shape[:-1],device=local_rays.device)[...,None]),dim=-1).float()
     world_rays = torch.einsum("ij,mnj -> mni",T_world_camera, local_rays)
     return  world_rays/world_rays[...,None].norm(dim=-1)
+
+
+def rot_to_euler(R) :
+
+    sy = torch.sqrt(R[0,0] * R[0,0] +  R[1,0] * R[1,0])
+ 
+    singular = sy < 1e-6
+ 
+    if  not singular :
+        x = torch.atan2(R[2,1] , R[2,2])
+        y = torch.atan2(-R[2,0], sy)
+        z = torch.atan2(R[1,0], R[0,0])
+    else :
+        x = torch.atan2(-R[1,2], R[1,1])
+        y = torch.atan2(-R[2,0], sy)
+        z = 0
+ 
+    return torch.tensor([x, y, z], device=R.device)

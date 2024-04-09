@@ -60,7 +60,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         assert dataset.n_classes == 0, "Gaussian Splatting does not predict semantics. Set n_classes to 0."
         gaussians = GaussianModel(dataset.sh_degree)
     else:
-        gaussians = DeepGaussianModel(0, dataset.n_latents, dataset.n_classes, dataset.pixel_embedding)
+        gaussians = DeepGaussianModel(0, dataset.n_latents, dataset.n_classes, dataset.pixel_embedding, dataset.pos_embedding,dataset.rot_embedding)
 
     scene = Scene(dataset, gaussians)
     gaussians.training_setup(opt)
@@ -130,7 +130,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         else:
             bg = torch.rand((gaussians.n_latents), device="cuda") if opt.random_background else background
 
-            render_pkg = render(viewpoint_cam, gaussians, pipe, bg, override_color=gaussians.get_features)
+            render_pkg = render(viewpoint_cam, gaussians, pipe, bg, override_color=gaussians.get_features, features_splatting=True)
 
         image, segmentation, viewspace_point_tensor, visibility_filter, radii = render_pkg["render"], render_pkg["segmentation"], render_pkg["viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
 

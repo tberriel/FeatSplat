@@ -12,8 +12,7 @@
 import torch
 from torch import nn
 import numpy as np
-from utils.graphics_utils import getWorld2View2, getProjectionMatrix, compute_rays
-
+from utils.graphics_utils import getWorld2View2, getProjectionMatrix, compute_rays, rot_to_euler
 class Camera(nn.Module):
     def __init__(self, colmap_id, R, T, FoVx, FoVy, image, gt_alpha_mask,
                  image_name, uid,
@@ -57,6 +56,7 @@ class Camera(nn.Module):
         self.full_proj_transform = (self.world_view_transform.unsqueeze(0).bmm(self.projection_matrix.unsqueeze(0))).squeeze(0)
         T_world_camera =self.world_view_transform.inverse()
         self.camera_center = T_world_camera[3, :3]
+        self.camera_rot = rot_to_euler(T_world_camera[:3, :3])
 
 class MiniCam:
     def __init__(self, width, height, fovy, fovx, znear, zfar, world_view_transform, full_proj_transform):

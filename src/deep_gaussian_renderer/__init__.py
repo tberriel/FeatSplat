@@ -106,7 +106,7 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
         rotations = rotations,
         cov3D_precomp = cov3D_precomp)
     if features_splatting:
-        rendered_image, segmentation_image = pc.nn_forward(latent_image,viewpoint_camera.camera_center, None)
+        rendered_image, segmentation_image = pc.nn_forward(latent_image,viewpoint_camera.camera_center, viewpoint_camera.camera_rot, None)
     else:
         rendered_image, segmentation_image = latent_image, None
 

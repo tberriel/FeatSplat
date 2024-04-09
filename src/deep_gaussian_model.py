@@ -33,13 +33,15 @@ class DeepGaussianModel(GaussianModel):
         self.rotation_activation = torch.nn.functional.normalize
 
 
-    def __init__(self, sh_degree:int, n_latents : int, n_classes : int, pixel_embedding : bool):
+    def __init__(self, sh_degree:int, n_latents : int, n_classes : int, pixel_embedding : bool, pos_embedding : bool, rot_embedding : bool):
         #super().__init__(sh_degree)
         self.active_sh_degree = sh_degree
         self.max_sh_degree = sh_degree
         self.n_latents = n_latents  
         self.n_classes = n_classes
         self.pixel_embedding = pixel_embedding
+        self.pos_embedding = pos_embedding
+        self.rot_embedding = rot_embedding
         self.p_embedding  = None
         self._xyz = torch.empty(0)
         self.latent_features = torch.empty(0)
@@ -53,8 +55,16 @@ class DeepGaussianModel(GaussianModel):
         self.percent_dense = 0
         self.spatial_lr_scale = 0
         self.n_classes = n_classes
+        embedding_size =0
+        if pixel_embedding:
+            embedding_size +=2
+        if pos_embedding:
+            embedding_size +=3
+        if rot_embedding:
+            embedding_size +=3
+
         self.cnn = nn.Sequential(
-            nn.Conv2d(n_latents+5 if pixel_embedding else n_latents, n_latents*2,1, padding=0, padding_mode='reflect'),
+            nn.Conv2d(n_latents+embedding_size, n_latents*2,1, padding=0, padding_mode='reflect'),
             nn.SiLU(),
             nn.Conv2d(n_latents*2,3*(sh_degree+1)**2+n_classes, 1, padding=0, padding_mode='reflect'),
         ).cuda()
@@ -122,21 +132,27 @@ class DeepGaussianModel(GaussianModel):
     def get_opacity(self):
         return self.opacity_activation(self._opacity)
     
-    def nn_forward(self, latent_features, camera_pos, camera_rays):
+    def nn_forward(self, latent_features, camera_pos, camera_rot, camera_rays):
         """ 
         - Input is n_latentsxHxW
         - Output is 3xHxW
         """
         _, h, w = latent_features.shape
-        if self.pixel_embedding:
+        if self.pos_embedding:
             camera_pos = camera_pos[...,None, None].repeat((1, h,w))
+            latent_features = torch.cat([latent_features,camera_pos] )
+        if self.rot_embedding:
+            camera_rot = camera_rot[...,None, None].repeat((1, h,w))
+            latent_features = torch.cat([latent_features,camera_rot] )
+
+        if self.pixel_embedding:
             if self.p_embedding is None or (self.p_embedding.shape[1] != h or self.p_embedding.shape[2] != w):
                 umap = torch.linspace(-1, 1, w, device = latent_features.device)
                 vmap = torch.linspace(-1, 1, h, device = latent_features.device)
                 umap, vmap = torch.meshgrid(umap, vmap, indexing='xy')
                 points_2d = torch.stack((umap, vmap), -1).float()
                 self.p_embedding =  points_2d.permute(2,0,1)
-            latent_features = torch.cat([latent_features,camera_pos,self.p_embedding] )
+            latent_features = torch.cat([latent_features,self.p_embedding] )
         rendered_image = self.cnn(latent_features)
         if self.n_classes > 0:            
             if self.cnn_seg is not None:
