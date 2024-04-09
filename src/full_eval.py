@@ -23,6 +23,8 @@ parser.add_argument("--output_path", default="./eval")
 parser.add_argument("--n_classes", default=0, type=int)
 parser.add_argument("--lambda_sem", default=0.001, type=float)
 parser.add_argument("--pembedding", action="store_true")
+parser.add_argument("--cam_pos", action="store_true")
+parser.add_argument("--cam_rot", action="store_true")
 parser.add_argument("--iterations", default=4, type=int)
 parser.add_argument("--gs", action="store_true")
 
@@ -51,6 +53,10 @@ if not args.skip_training:
     common_args = f" --quiet --eval --test_iterations -1 --n_classes {args.n_classes} --sh_degree {args.sh_degree}"
     if args.pembedding:
         common_args += " --pixel_embedding "
+    if args.cam_pos:
+        common_args += " --pos_embedding"
+    if args.cam_rot:
+        common_args += " --rot_embedding"
     if args.gs:
         common_args += "--gaussian_splatting "
     for scene in args.mipnerf360_outdoor_scenes:
@@ -92,6 +98,10 @@ if not args.skip_rendering:
     common_args = f" --quiet --eval --skip_train --n_classes {args.n_classes} --sh_degree {args.sh_degree}"
     if args.pembedding:
         common_args += " --pixel_embedding "
+    if args.cam_pos:
+        common_args += " --pos_embedding"
+    if args.cam_rot:
+        common_args += " --rot_embedding"
     if args.gs:
         common_args += "--gaussian_splatting "
     for scene, source in zip(almost_all_scenes, all_sources):
@@ -126,6 +136,10 @@ if not args.skip_comp_metrics:
     common_args = ["--eval","--n_classes", f"{args.n_classes}", "--sh_degree", f"{args.sh_degree}"]
     if args.pembedding:
         common_args += ["--pixel_embedding"]
+    if args.cam_pos:
+        common_args += ["--pos_embedding"]
+    if args.cam_rot:
+        common_args += ["--rot_embedding"]
     if args.gs:
         common_args += ["--gaussian_splatting"]
         
@@ -134,40 +148,3 @@ if not args.skip_comp_metrics:
 
     for scene in args.scannetpp_scenes:
         computation_metrics(common_args + ["-s",args.scannetpp + "/" + scene, "-m",args.output_path + "/scannet/" + scene+name_suffix+f"_{0}"])
-
-for scene in almost_all_scenes:
-    results = []
-
-    result_file = os.path.join(args.output_path, scene, "results.json")
-    with open(result_file, "r") as f:
-        data = json.load(f)
-        ssim = data["ours_30000"]["SSIM"]
-        lpips = data["ours_30000"]["LPIPS"]
-        psnr = data["ours_30000"]["PSNR"]
-        results.append((ssim, lpips, psnr))
-
-    # Compute averages
-    avg_ssim = sum([result[0] for result in results]) / len(results)
-    avg_lpips = sum([result[1] for result in results]) / len(results)
-    avg_psnr = sum([result[2] for result in results]) / len(results)
-    print(f"{scene} ")
-    print("Average SSIM: {:.3f}; PSNR: {:.3f}; LPIPS: {:.3f};".format(avg_ssim, avg_psnr, avg_lpips))
-
-for scene in args.scannetpp_scenes:
-    results = []
-    for i in range(args.iterations):
-
-        result_file = os.path.join(args.output_path, "scannet/", scene+name_suffix+f"_{i}", "results.json")
-        with open(result_file, "r") as f:
-            data = json.load(f)
-            ssim = data["ours_30000"]["SSIM"]
-            lpips = data["ours_30000"]["LPIPS"]
-            psnr = data["ours_30000"]["PSNR"]
-            results.append((ssim, lpips, psnr))
-
-    # Compute averages
-    avg_ssim = sum([result[0] for result in results]) / len(results)
-    avg_lpips = sum([result[1] for result in results]) / len(results)
-    avg_psnr = sum([result[2] for result in results]) / len(results)
-    print(f"Scannet {scene} ")
-    print("Average SSIM: {:.3f}; PSNR: {:.3f}; LPIPS: {:.3f};".format(avg_ssim, avg_psnr, avg_lpips))
