@@ -13,7 +13,7 @@ import os
 from argparse import ArgumentParser
 import json
 
-mipnerf360_outdoor_scenes =[]# ["bicycle"]
+mipnerf360_outdoor_scenes =[]#["bicycle"]
 deep_blending_scenes = []#["playroom", "drjohnson"]
 tanks_and_temples_scenes = ["train"]
 
@@ -81,15 +81,15 @@ if not args.skip_rendering:
             if args.cam_rot:
                 common_args += " --rot_embedding"
             for scene, source in zip(all_scenes, all_sources):
-                os.system("python src/render.py --iteration 7000 -s " + source + " -m " + args.output_path + "/" + scene+f"_sem{args.n_classes}_lr{lr}_{i}" + common_args)
-                os.system("python src/render.py --iteration 30000 -s " + source + " -m " + args.output_path + "/" + scene+f"_sem{args.n_classes}_lr{lr}_{i}" + common_args)
+                os.system("python src/render.py --iteration 7000 -s " + source + " -m " + args.output_path + "/" + scene+f"_lr{lr}_{i}" + common_args)
+                os.system("python src/render.py --iteration 30000 -s " + source + " -m " + args.output_path + "/" + scene+f"_lr{lr}_{i}" + common_args)
 
 if not args.skip_metrics:
     scenes_string = ""
     for lr in lr_values:
         for i in range(args.iterations):
             for scene in all_scenes:
-                scenes_string += "\"" + args.output_path + "/" + scene+f"_sem{args.n_classes}_lr{lr}_{i}" + "\" "
+                scenes_string += "\"" + args.output_path + "/" + scene+f"_lr{lr}_{i}" + "\" "
 
     os.system("python src/metrics.py -m " + scenes_string)
 for lr in lr_values:
@@ -97,7 +97,7 @@ for lr in lr_values:
         results = []
         for i in range(args.iterations):
 
-            result_file = os.path.join(args.output_path, scene+f"_sem{args.n_classes}_lr{lr}_{i}", "results.json")
+            result_file = os.path.join(args.output_path, scene+f"_lr{lr}_{i}", "results.json")
             with open(result_file, "r") as f:
                 data = json.load(f)
                 ssim = data["ours_30000"]["SSIM"]
