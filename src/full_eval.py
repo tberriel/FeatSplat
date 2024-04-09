@@ -12,17 +12,13 @@
 import os
 from argparse import ArgumentParser
 import json
-#mipnerf360_outdoor_scenes = ["bicycle", "flowers", "garden", "stump", "treehill"]
-#mipnerf360_indoor_scenes = ["room", "counter", "kitchen", "bonsai"]
-#tanks_and_temples_scenes = ["truck", "train"]
-#deep_blending_scenes = ["drjohnson", "playroom"]
-
-#scannetpp_scenes = ['0a5c013435', 'f07340dfea',  '7bc286c1b6', 'd2f44bf242',  '85251de7d1', '0e75f3c4d9', '98fe276aa8', '7e7cd69a59', 'f3685d06a9', '21d970d8de', '8b5caf3398', 'ada5304e41', '4c5c60fa76']#['a5114ca13d','108ec0b806','bb87c292ad', 'ebc200e928', 'a08d9a2476','5942004064',]#
+from computation_metrics import computation_metrics
 
 parser = ArgumentParser(description="Full evaluation script parameters")
 parser.add_argument("--skip_training", action="store_true")
 parser.add_argument("--skip_rendering", action="store_true")
 parser.add_argument("--skip_metrics", action="store_true")
+parser.add_argument("--skip_comp_metrics", action="store_true")
 parser.add_argument("--output_path", default="./eval")
 parser.add_argument("--n_classes", default=0, type=int)
 parser.add_argument("--lambda_sem", default=0.001, type=float)
@@ -41,7 +37,7 @@ parser.add_argument('--mipnerf360_outdoor_scenes', nargs="+", type=str, default=
 parser.add_argument('--mipnerf360_indoor_scenes', nargs="+", type=str, default=["room", "counter", "kitchen", "bonsai"] if args.mipnerf360 is not None else [] )
 parser.add_argument('--tanks_and_temples_scenes', nargs="+", type=str, default=["truck", "train"] if args.tanksandtemples is not None else [] )
 parser.add_argument('--deep_blending_scenes', nargs="+", type=str, default=["drjohnson", "playroom"] if args.deepblending is not None else [] )
-parser.add_argument('--scannetpp_scenes', nargs="+", type=str, default=['0a5c013435', 'f07340dfea',  '7bc286c1b6', 'd2f44bf242',  '85251de7d1', '0e75f3c4d9', '98fe276aa8', '7e7cd69a59', 'f3685d06a9', '21d970d8de', '8b5caf3398', 'ada5304e41', '4c5c60fa76'] if args.scannetpp is not None else [] )#['a5114ca13d','108ec0b806','bb87c292ad', 'ebc200e928', 'a08d9a2476','5942004064',])
+parser.add_argument('--scannetpp_scenes', nargs="+", type=str, default=['0a5c013435', 'f07340dfea',  '7bc286c1b6', 'd2f44bf242',  '85251de7d1', '0e75f3c4d9', '98fe276aa8', '7e7cd69a59', 'f3685d06a9', '21d970d8de', '8b5caf3398', 'ada5304e41', '4c5c60fa76', 'ebc200e928', 'a5114ca13d', '5942004064'] if args.scannetpp is not None else [] )#['108ec0b806','bb87c292ad', 'a08d9a2476'])
 
 args = parser.parse_args()
 
@@ -103,9 +99,8 @@ if not args.skip_rendering:
         os.system("python src/render.py --iteration 30000 -s " + source + " -m " + args.output_path + "/" + scene + common_args)
     for scene in args.scannetpp_scenes:
         for i in range(args.iterations):
-            #os.system("python src/render.py --iteration 7000 -s " + args.scannetpp + "/" + scene + " -m " + args.output_path + "/" + scene+f"_sem{args.n_classes}_{args.iterations}" + common_args)
             os.system("python src/render.py --iteration 30000 -s " + args.scannetpp + "/" + scene + " -m " + args.output_path + "/scannet/" + scene+name_suffix+f"_{i}" + common_args)
-    
+
 
 if not args.skip_metrics:
     scenes_string = ""
@@ -117,6 +112,28 @@ if not args.skip_metrics:
 
     os.system("python src/metrics.py -m " + scenes_string)
 
+if not args.skip_comp_metrics:
+    all_sources = []
+    for scene in args.mipnerf360_outdoor_scenes:
+        all_sources.append(args.mipnerf360 + "/" + scene)
+    for scene in args.mipnerf360_indoor_scenes:
+        all_sources.append(args.mipnerf360 + "/" + scene)
+    for scene in args.tanks_and_temples_scenes:
+        all_sources.append(args.tanksandtemples + "/" + scene)
+    for scene in args.deep_blending_scenes:
+        all_sources.append(args.deepblending + "/" + scene)
+
+    common_args = ["--eval","--n_classes", f"{args.n_classes}", "--sh_degree", f"{args.sh_degree}"]
+    if args.pembedding:
+        common_args += ["--pixel_embedding"]
+    if args.gs:
+        common_args += ["--gaussian_splatting"]
+        
+    for scene, source in zip(almost_all_scenes, all_sources):
+        computation_metrics(common_args + ["-s", source, "-m", args.output_path + "/" + scene])
+
+    for scene in args.scannetpp_scenes:
+        computation_metrics(common_args + ["-s",args.scannetpp + "/" + scene, "-m",args.output_path + "/scannet/" + scene+name_suffix+f"_{0}"])
 
 for scene in almost_all_scenes:
     results = []

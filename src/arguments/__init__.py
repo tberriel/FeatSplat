@@ -95,8 +95,12 @@ class OptimizationParams(ParamGroup):
         self.random_background = False
         super().__init__(parser, "Optimization Parameters")
 
-def get_combined_args(parser : ArgumentParser):
-    cmdlne_string = sys.argv[1:]
+def get_combined_args(parser : ArgumentParser, args : list = None):
+    if args is None:
+        cmdlne_string = sys.argv[1:]
+    else:
+        cmdlne_string = args
+
     cfgfile_string = "Namespace()"
     args_cmdline = parser.parse_args(cmdlne_string)
 
