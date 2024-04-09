@@ -22,17 +22,21 @@ if __name__ == "__main__":
                 scenes.append(folder)
     res = 1
     if args.model == "deep_splatting":
-        chkpt_args = f"_sem{args.n_classes}_1h_{args.lambda_sem}" 
+        chkpt_path = "eval/full/scannet"
+        chkpt_args = f"_sem{args.n_classes}" 
+        if args.lambda_sem>0.0:
+            chkpt_args += f"_{args.lambda_sem}" 
         train_file = "src/train.py"
-        sh_degree = 1
-        flags = f"--n_classes {args.n_classes} --lambda_sem {args.lambda_sem}"
+        sh_degree = 0
+        flags = f" --pixel_embedding --pos_embedding --rot_embedding --n_classes {args.n_classes} --lambda_sem {args.lambda_sem}"
         if args.weighted_ce_loss:
             flags += " --weighted_ce_loss "
-            chkpt_args = f"_sem{args.n_classes}_wce1h_{args.lambda_sem}" 
+            chkpt_args = f"sem{args.n_classes}_wce_{args.lambda_sem}" 
     else: 
+        chkpt_path = "eval/scannet"
         chkpt_args = "" 
         train_file = "train.py"
-        sh_degree = 4
+        sh_degree = 3
         flags = ""
     model_path = os.path.join(base_path,args.model)
     os.chdir(model_path)
@@ -40,7 +44,7 @@ if __name__ == "__main__":
     for n, scene in enumerate(scenes):
         source = os.path.join(base_path, "Scannet_data",scene)
         for i in range(args.runs):
-            chkpt = os.path.join(model_path, f"mymodels/scannet{chkpt_args}_{scene}_{i}/")
+            chkpt = os.path.join(model_path, f"{chkpt_path}/{scene}_{chkpt_args}_{i+1}/")
                 
             stdout_file = os.path.join(chkpt, "stdout.log")
             stderr_file = os.path.join(chkpt, "stderr.log")
