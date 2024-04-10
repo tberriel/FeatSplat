@@ -92,18 +92,31 @@ def compute_rays(projection_matrix, T_world_camera, image_width, image_height):
 
 
 def rot_to_euler(R) :
-
-    sy = torch.sqrt(R[0,0] * R[0,0] +  R[1,0] * R[1,0])
- 
-    singular = sy < 1e-6
+    "Implementation based on https://www.eecs.qmul.ac.uk/~gslabaugh/publications/euler.pdf"
+    
+    tol = 1e-4  
+    singular = (1-tol<abs(R[2,0])<1+tol) # If equal to +-1
  
     if  not singular :
-        x = torch.atan2(R[2,1] , R[2,2])
-        y = torch.atan2(-R[2,0], sy)
-        z = torch.atan2(R[1,0], R[0,0])
+        theta1 = -torch.asin(R[2,0])
+        theta2 = math.pi - theta1
+        cos_t1 = torch.cos(theta1)
+        cos_t2 = torch.cos(theta2)
+        psi1 = torch.atan2(R[2,1]/cos_t1, R[2,2]/cos_t1)
+        psi2 = torch.atan2(R[2,1]/cos_t2, R[2,2]/cos_t2)
+        phi1 = torch.atan2(R[1,0]/cos_t1, R[0,0]/cos_t1)
+        phi2 = torch.atan2(R[1,0]/cos_t2, R[0,0]/cos_t2)
+        angles_1 = torch.hstack([theta1, psi1, phi1])
+        angles_2 = torch.hstack([theta2, psi2, phi2])
+        euler_angles = angles_1 if angles_1.abs().sum()<  angles_2.abs().sum() else angles_2
     else :
-        x = torch.atan2(-R[1,2], R[1,1])
-        y = torch.atan2(-R[2,0], sy)
-        z = 0
- 
-    return torch.tensor([x, y, z], device=R.device)
+        phi = torch.tensor([0], device=R.device)
+        if -1+tol < R[2,0] < -1-tol :
+            theta =  torch.tensor([math.pi/2], device=R.device)
+            psi = phi+torch.atan2(R[0,1, R[0,2]])
+        else:
+            theta = torch.tensor([-math.pi/2], device=R.device)
+            psi = -phi+torch.atan2(-R[0,1, -R[0,2]])
+        euler_angles = torch.hstack([theta, psi, phi])
+
+    return euler_angles
