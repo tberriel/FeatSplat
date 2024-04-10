@@ -74,7 +74,7 @@ if not args.skip_training:
     for scene in args.scannetpp_scenes:
         for i in range(args.iterations):
             source = args.scannetpp + "/" + scene
-            os.system("python src/train.py -s " + source + " -m " + args.output_path + "/" + scene+name_suffix+f"_i" + common_args)
+            os.system("python src/train.py -s " + source + " -m " + args.output_path + "/" + scene+name_suffix+f"_{i}" + common_args)
 
 almost_all_scenes = []
 almost_all_scenes.extend(args.mipnerf360_outdoor_scenes)
@@ -115,7 +115,7 @@ if not args.skip_rendering:
 if not args.skip_metrics:
     scenes_string = ""
     for scene in almost_all_scenes:
-        scenes_string += "\"" + args.output_path + "/" + scene+f"_sem{args.n_classes}" + "\" "
+        scenes_string += "\"" + args.output_path + "/" + scene + "\" "
     for scene in args.scannetpp_scenes:
         for i in range(args.iterations):
             scenes_string += "\"" + args.output_path + "/scannet/" + scene+name_suffix+f"_{i}" + "\" "

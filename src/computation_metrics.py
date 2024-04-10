@@ -34,7 +34,7 @@ def compute_fps(dataset : ModelParams, pipeline : PipelineParams, gaussian_splat
             assert dataset.n_classes == 0, "Gaussian Splatting does not predict semantics. Set n_classes to 0."
             gaussians = GaussianModel(dataset.sh_degree)
         else:
-            gaussians = DeepGaussianModel(dataset.sh_degree, dataset.n_latents, dataset.n_classes, dataset.pixel_embedding)
+            gaussians = DeepGaussianModel(dataset.sh_degree, dataset.n_latents, dataset.n_classes, dataset.pixel_embedding, dataset.pos_embedding, dataset.rot_embedding)
         scene = Scene(dataset, gaussians, load_iteration=30000, shuffle=False)
         if gaussian_splatting:
             bg_color = [1, 1, 1] if dataset.white_background else [0, 0, 0]
