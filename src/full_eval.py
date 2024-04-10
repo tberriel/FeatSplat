@@ -115,7 +115,7 @@ if not args.skip_rendering:
 if not args.skip_metrics:
     scenes_string = ""
     for scene in almost_all_scenes:
-        scenes_string += "\"" + args.output_path + "/" + scene+f"_sem{args.n_classes}" + "\" "
+        scenes_string += "\"" + args.output_path + "/" + scene + "\" "
     for scene in args.scannetpp_scenes:
         for i in range(args.iterations):
             scenes_string += "\"" + args.output_path + "/scannet/" + scene+name_suffix+f"_{i}" + "\" "
