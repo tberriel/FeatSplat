@@ -52,7 +52,7 @@ def plot_seg_image(seg_image, data_mapping, fig = 0):
     plt.pause(0.01)
 
 def streaming(dataset, opt, pipe, checkpoint):
-    gaussians = DeepGaussianModel(dataset.sh_degree, dataset.n_latents, dataset.n_classes)
+    gaussians = DeepGaussianModel(dataset.sh_degree, dataset.n_latents, dataset.n_classes, dataset.pixel_embedding, dataset.pos_embedding,dataset.rot_embedding)
     gaussians.training_setup(opt)
     if checkpoint and False:
         (model_params, first_iter) = torch.load(checkpoint)
@@ -75,7 +75,7 @@ def streaming(dataset, opt, pipe, checkpoint):
                     net_image_bytes = None
                     custom_cam, do_training, pipe.convert_SHs_python, pipe.compute_cov3D_python, keep_alive, scaling_modifer = network_gui.receive()
                     if custom_cam != None:
-                        out =  render(custom_cam, gaussians, pipe, background, scaling_modifer, override_color=gaussians.get_features)
+                        out =  render(custom_cam, gaussians, pipe, background, scaling_modifer, override_color=gaussians.get_features, features_splatting=True)
                         net_image = out["render"]
                         net_image_bytes = memoryview((torch.clamp(net_image, min=0, max=1.0) * 255).byte().permute(1, 2, 0).contiguous().cpu().numpy())
                         if dataset.n_classes>0:
@@ -87,7 +87,7 @@ def streaming(dataset, opt, pipe, checkpoint):
                     network_gui.conn = None
 
 def streaming_gt(dataset, opt, pipe, checkpoint):
-    gaussians = DeepGaussianModel(dataset.sh_degree, dataset.n_latents, dataset.n_classes)
+    gaussians = DeepGaussianModel(dataset.sh_degree, dataset.n_latents, dataset.n_classes, dataset.pixel_embedding, dataset.pos_embedding,dataset.rot_embedding)
     gaussians.training_setup(opt)
     if checkpoint:
         (model_params, first_iter) = torch.load(checkpoint)
