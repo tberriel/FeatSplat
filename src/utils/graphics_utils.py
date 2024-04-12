@@ -116,7 +116,7 @@ def rot_to_euler(R) :
             psi = phi+torch.atan2(R[0,1, R[0,2]])
         else:
             theta = torch.tensor([-math.pi/2], device=R.device)
-            psi = -phi+torch.atan2(-R[0,1, -R[0,2]])
+            psi = -phi+torch.atan2(-R[0,1], -R[0,2])
         euler_angles = torch.hstack([theta, psi, phi])
 
     return euler_angles
