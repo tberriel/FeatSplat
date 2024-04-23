@@ -14,6 +14,12 @@ from argparse import ArgumentParser
 import json
 from computation_metrics import computation_metrics
 
+# total of 380 scenes: 24 scenes for segmentation experiment ; 100 scenes for NVS benchmark; 254 scenes rest
+scannetpp_sem_scenes =['0a5c013435', 'f07340dfea',  '7bc286c1b6', 'd2f44bf242',  '85251de7d1', '0e75f3c4d9', '98fe276aa8', '7e7cd69a59', 'f3685d06a9', '21d970d8de', '8b5caf3398', 'ada5304e41', '4c5c60fa76', 'ebc200e928', 'a5114ca13d', '5942004064', '1ada7a0617','f6659a3107', '1a130d092a', '80ffca8a48',   '08bbbdcc3d',]# oom 54b6127146, to render both gs and fs: 'bb87c292ad', '108ec0b806', 'a4e227f506'; oom for render fs: 'a08d9a2476',
+scannetpp_nvs_scenes = os.listdir("/home/tberriel/Workspaces/splatting_ws/deep_splatting/eval/pecp/scannet_nvs")
+scannetpp_rest_scenes = [x[:-2] for x in os.listdir("/home/tberriel/Workspaces/splatting_ws/deep_splatting/eval/pecp/scannet_rest")]
+
+
 parser = ArgumentParser(description="Full evaluation script parameters")
 parser.add_argument("--skip_training", action="store_true")
 parser.add_argument("--skip_rendering", action="store_true")
@@ -39,7 +45,9 @@ parser.add_argument('--mipnerf360_outdoor_scenes', nargs="+", type=str, default=
 parser.add_argument('--mipnerf360_indoor_scenes', nargs="+", type=str, default=["room", "counter", "kitchen", "bonsai"] if args.mipnerf360 is not None else [] )
 parser.add_argument('--tanks_and_temples_scenes', nargs="+", type=str, default=["truck", "train"] if args.tanksandtemples is not None else [] )
 parser.add_argument('--deep_blending_scenes', nargs="+", type=str, default=["drjohnson", "playroom"] if args.deepblending is not None else [] )
-parser.add_argument('--scannetpp_scenes', nargs="+", type=str, default=['0a5c013435', 'f07340dfea',  '7bc286c1b6', 'd2f44bf242',  '85251de7d1', '0e75f3c4d9', '98fe276aa8', '7e7cd69a59', 'f3685d06a9', '21d970d8de', '8b5caf3398', 'ada5304e41', '4c5c60fa76', 'ebc200e928', 'a5114ca13d', '5942004064', '108ec0b806','bb87c292ad', 'a08d9a2476', "08bbbdcc3d", "1a130d092a", "80ffca8a48", "a4e227f506", "f6659a3107"] if args.scannetpp is not None else [] )# 54b6127146
+parser.add_argument('--scannetpp_scenes', nargs="+", type=str, default=[] if args.scannetpp is not None else [] )
+parser.add_argument("--scannetpp_set", default="scannet_sem")
+
 args = parser.parse_args()
 
 if args.n_classes > 0:
@@ -47,6 +55,16 @@ if args.n_classes > 0:
     assert not args.gs, "Gaussian Splatting does not predict semantics. Set n_classes to 0."
 else:
     name_suffix = ""
+
+if len(args.scannetpp_scenes) == 0:
+    if args.scannetpp_set == "scannet_sem":
+        args.scannetpp_scenes = scannetpp_sem_scenes
+    elif args.scannetpp_set == "scannet_nvs":
+        args.scannetpp_scenes = scannetpp_nvs_scenes
+    elif args.scannetpp_set == "scannet_rest":
+        args.scannetpp_scenes = scannetpp_rest_scenes
+    else:
+        assert False, "Either pass a set of ScanNet++ scenes, or select a set from ['scannet_sem', 'scannet_nvs', 'scannet_rest']"
 
 if not args.skip_training:
     common_args = f" --quiet --eval --test_iterations -1 --n_classes {args.n_classes} --sh_degree {args.sh_degree}"
@@ -60,20 +78,20 @@ if not args.skip_training:
         common_args += " --gaussian_splatting "
     for scene in args.mipnerf360_outdoor_scenes:
         source = args.mipnerf360+ "/" + scene
-        os.system("python src/train.py -s " + source + " -i images_4 -m " + args.output_path + "/" + scene+ common_args)
+        os.system("python src/train.py -s " + source + " -i images_4 -m " + os.path.join(args.output_path,"360_v2",scene)+ common_args)
     for scene in args.mipnerf360_indoor_scenes:
         source = args.mipnerf360 + "/" + scene
-        os.system("python src/train.py -s " + source + " -i images_2 -m " + args.output_path + "/" + scene+ common_args)
+        os.system("python src/train.py -s " + source + " -i images_2 -m " + os.path.join(args.output_path,"360_v2",scene)+ common_args)
     for scene in args.tanks_and_temples_scenes:
         source = args.tanksandtemples + "/" + scene
-        os.system("python src/train.py -s " + source + " -m " + args.output_path + "/" + scene+ common_args)
+        os.system("python src/train.py -s " + source + " -m " + os.path.join(args.output_path,"tant",scene)+ common_args)
     for scene in args.deep_blending_scenes:
         source = args.deepblending + "/" + scene
-        os.system("python src/train.py -s " + source + " -m " + args.output_path + "/" + scene+ common_args)
+        os.system("python src/train.py -s " + source + " -m " + os.path.join(args.output_path,"db",scene)+ common_args)
     for scene in args.scannetpp_scenes:
         for i in range(args.iterations):
             source = args.scannetpp + "/" + scene
-            os.system("python src/train.py -s " + source + " -m " + args.output_path + "/" + scene+name_suffix+f"_{i}" + common_args)
+            os.system("python src/train.py -s " + source + " -m " +  os.path.join(args.output_path,args.scannetpp_set,scene+name_suffix+f"_{i}") + common_args)
 
 almost_all_scenes = []
 almost_all_scenes.extend(args.mipnerf360_outdoor_scenes)
@@ -104,24 +122,37 @@ if not args.skip_rendering:
     if args.gs:
         common_args += " --gaussian_splatting "
     for scene, source in zip(almost_all_scenes, all_sources):
-        os.system("python src/render.py --iteration 7000 -s " + source + " -m " + args.output_path + "/" + scene + common_args)
-        os.system("python src/render.py --iteration 30000 -s " + source + " -m " + args.output_path + "/" + scene + common_args)
+        if scene in  args.mipnerf360_indoor_scenes or scene in args.mipnerf360_outdoor_scenes:
+            dataset = "360_v2"
+        elif scene in  args.tanks_and_temples_scenes:
+            dataset = "tant"
+        elif scene in args.deep_blending_scenes:
+            dataset = "db"
+        os.system("python src/render.py --iteration 7000 -s " + source + " -m " + os.path.join(args.output_path,dataset,scene) + common_args)
+        os.system("python src/render.py --iteration 30000 -s " + source + " -m " + os.path.join(args.output_path,dataset,scene) + common_args)
     for scene in args.scannetpp_scenes:
         for i in range(args.iterations):
-            os.system("python src/render.py --iteration 30000 -s " + args.scannetpp + "/" + scene + " -m " + args.output_path + "/scannet/" + scene+name_suffix+f"_{i}" + common_args)
+            os.system("python src/render.py --iteration 30000 -s " + args.scannetpp + "/" + scene + " -m " + os.path.join(args.output_path,args.scannetpp_set,scene+name_suffix+f"_{i}") + common_args)
 
 
 if not args.skip_metrics:
     scenes_string = ""
     for scene in almost_all_scenes:
-        scenes_string += "\"" + args.output_path + "/" + scene + "\" "
+        if scene in  args.mipnerf360_indoor_scenes or scene in args.mipnerf360_outdoor_scenes:
+            dataset = "360_v2"
+        elif scene in  args.tanks_and_temples_scenes:
+            dataset = "tant"
+        elif scene in args.deep_blending_scenes:
+            dataset = "db"
+        scenes_string += "\"" + os.path.join(args.output_path,dataset,scene) + "\" "
     for scene in args.scannetpp_scenes:
         for i in range(args.iterations):
-            scenes_string += "\"" + args.output_path + "/scannet/" + scene+name_suffix+f"_{i}" + "\" "
+            scenes_string += "\"" + os.path.join(args.output_path,args.scannetpp_set,scene+name_suffix+f"_{i}") + "\" "
 
     os.system("python src/metrics.py -m " + scenes_string)
 
 if not args.skip_comp_metrics:
+    failed_scenes = []
     all_sources = []
     for scene in args.mipnerf360_outdoor_scenes:
         all_sources.append(args.mipnerf360 + "/" + scene)
@@ -143,7 +174,21 @@ if not args.skip_comp_metrics:
         common_args += ["--gaussian_splatting"]
         
     for scene, source in zip(almost_all_scenes, all_sources):
-        computation_metrics(common_args + ["-s", source, "-m", args.output_path + "/" + scene])
+        if scene in  args.mipnerf360_indoor_scenes or scene in args.mipnerf360_outdoor_scenes:
+            dataset = "360_v2"
+        elif scene in  args.tanks_and_temples_scenes:
+            dataset = "tant"
+        elif scene in args.deep_blending_scenes:
+            dataset = "db"
+        try:
+            computation_metrics(common_args + ["-s", source, "-m", os.path.join(args.output_path,dataset,scene)])
+        except:
+            failed_scenes.append(scene)
 
     for scene in args.scannetpp_scenes:
-        computation_metrics(common_args + ["-s",args.scannetpp + "/" + scene, "-m",args.output_path + "/scannet/" + scene+name_suffix+f"_{0}"])
+        try:
+            computation_metrics(common_args + ["-s",args.scannetpp + "/" + scene, "-m",os.path.join(args.output_path,args.scannetpp_set,scene+name_suffix+f"_{i}")])
+
+        except:
+            failed_scenes.append(scene)
+    print(f"Failed on scenes: {failed_scenes}")
