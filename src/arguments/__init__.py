@@ -47,7 +47,7 @@ class ParamGroup:
 class ModelParams(ParamGroup): 
     def __init__(self, parser, sentinel=False):
         self.sh_degree = 0
-        self.n_latents = 32
+        self.n_latents = 16
         self.n_classes = 64
         self.pixel_embedding = False
         self.pos_embedding = False

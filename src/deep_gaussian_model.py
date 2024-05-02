@@ -64,9 +64,9 @@ class DeepGaussianModel(GaussianModel):
             embedding_size +=3
 
         self.cnn = nn.Sequential(
-            nn.Conv2d(n_latents+embedding_size, n_latents*2,1, padding=0, padding_mode='reflect'),
+            nn.Conv2d(n_latents+embedding_size, 64,1, padding=0, padding_mode='reflect'),
             nn.SiLU(),
-            nn.Conv2d(n_latents*2,3*(sh_degree+1)**2+n_classes, 1, padding=0, padding_mode='reflect'),
+            nn.Conv2d(64,3*(sh_degree+1)**2+n_classes, 1, padding=0, padding_mode='reflect'),
         ).cuda()
 
         if n_classes >0 and False:
