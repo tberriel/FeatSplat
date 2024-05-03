@@ -45,7 +45,7 @@ parser.add_argument('--mipnerf360_outdoor_scenes', nargs="+", type=str, default=
 parser.add_argument('--mipnerf360_indoor_scenes', nargs="+", type=str, default=["room", "counter", "kitchen", "bonsai"] if args.mipnerf360 is not None else [] )
 parser.add_argument('--tanks_and_temples_scenes', nargs="+", type=str, default=["truck", "train"] if args.tanksandtemples is not None else [] )
 parser.add_argument('--deep_blending_scenes', nargs="+", type=str, default=["drjohnson", "playroom"] if args.deepblending is not None else [] )
-parser.add_argument('--scannetpp_scenes', nargs="+", type=str, default=[] if args.scannetpp is not None else [] )
+parser.add_argument('--scannetpp_scenes', nargs="+", type=str, default=[])
 parser.add_argument("--scannetpp_set", default="scannet_sem")
 
 args = parser.parse_args()
@@ -56,7 +56,7 @@ if args.n_classes > 0:
 else:
     name_suffix = ""
 
-if len(args.scannetpp_scenes) == 0:
+if len(args.scannetpp_scenes) == 0 and args.scannetpp:
     if args.scannetpp_set == "scannet_sem":
         args.scannetpp_scenes = scannetpp_sem_scenes
     elif args.scannetpp_set == "scannet_nvs":
