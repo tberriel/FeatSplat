@@ -16,7 +16,7 @@ from computation_metrics import computation_metrics
 
 # total of 380 scenes: 24 scenes for segmentation experiment ; 100 scenes for NVS benchmark; 254 scenes rest
 scannetpp_sem_scenes =['0a5c013435', 'f07340dfea',  '7bc286c1b6', 'd2f44bf242',  '85251de7d1', '0e75f3c4d9', '98fe276aa8', '7e7cd69a59', 'f3685d06a9', '21d970d8de', '8b5caf3398', 'ada5304e41', '4c5c60fa76', 'ebc200e928', 'a5114ca13d', '5942004064', '1ada7a0617','f6659a3107', '1a130d092a', '80ffca8a48',   '08bbbdcc3d',]# oom 54b6127146, to render both gs and fs: 'bb87c292ad', '108ec0b806', 'a4e227f506'; oom for render fs: 'a08d9a2476',
-scannetpp_nvs_scenes = os.listdir("/home/tberriel/Workspaces/splatting_ws/deep_splatting/eval/pecp/scannet_nvs")
+scannetpp_nvs_scenes = os.listdir("/home/tberriel/Workspaces/splatting_ws/deep_splatting/Datasets/eval/pecp/scannet_nvs")
 scannetpp_rest_scenes = [x[:-2] for x in os.listdir("/home/tberriel/Workspaces/splatting_ws/deep_splatting/eval/pecp/scannet_rest")]
 
 
@@ -33,6 +33,7 @@ parser.add_argument("--cam_pos", action="store_true")
 parser.add_argument("--cam_rot", action="store_true")
 parser.add_argument("--iterations", default=4, type=int)
 parser.add_argument("--gs", action="store_true")
+parser.add_argument("--data_device", default="cuda")
 
 parser.add_argument('--mipnerf360', "-m360", type=str)
 parser.add_argument("--tanksandtemples", "-tat",type=str)
@@ -67,7 +68,7 @@ if len(args.scannetpp_scenes) == 0 and args.scannetpp:
         assert False, "Either pass a set of ScanNet++ scenes, or select a set from ['scannet_sem', 'scannet_nvs', 'scannet_rest']"
 
 if not args.skip_training:
-    common_args = f" --quiet --eval --test_iterations -1 --n_classes {args.n_classes} --sh_degree {args.sh_degree}"
+    common_args = f" --quiet --eval --test_iterations -1 --n_classes {args.n_classes} --sh_degree {args.sh_degree} --data_device {args.data_device}"
     if args.pembedding:
         common_args += " --pixel_embedding "
     if args.cam_pos:
@@ -112,7 +113,7 @@ if not args.skip_rendering:
     for scene in args.deep_blending_scenes:
         all_sources.append(args.deepblending + "/" + scene)
 
-    common_args = f" --quiet --eval --skip_train --n_classes {args.n_classes} --sh_degree {args.sh_degree}"
+    common_args = f" --quiet --eval --skip_train --n_classes {args.n_classes} --sh_degree {args.sh_degree} --data_device {args.data_device}"
     if args.pembedding:
         common_args += " --pixel_embedding "
     if args.cam_pos:
@@ -163,7 +164,7 @@ if not args.skip_comp_metrics:
     for scene in args.deep_blending_scenes:
         all_sources.append(args.deepblending + "/" + scene)
 
-    common_args = ["--eval","--n_classes", f"{args.n_classes}", "--sh_degree", f"{args.sh_degree}"]
+    common_args = ["--eval","--n_classes", f"{args.n_classes}", "--sh_degree", f"{args.sh_degree}", "--data_device",f"{args.data_device}"]
     if args.pembedding:
         common_args += ["--pixel_embedding"]
     if args.cam_pos:
