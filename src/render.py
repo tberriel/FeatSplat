@@ -15,6 +15,7 @@ import os
 from tqdm import tqdm
 from os import makedirs
 from deep_gaussian_renderer import render
+from utils.seg_utils import mapClassesToRGB, loadSemanticClasses
 import torchvision
 from utils.general_utils import safe_state
 from argparse import ArgumentParser
@@ -28,15 +29,32 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
         makedirs(render_path, exist_ok=True)
         makedirs(gts_path, exist_ok=True)
 
+    if gaussians.n_classes>0:
+        data_mapping, _ = loadSemanticClasses(n = gaussians.n_classes)    
+        render_sem_path = os.path.join(model_path, name, "ours_{}".format(iteration), "renders_sem")
+        gts_sem_path = os.path.join(model_path, name, "ours_{}".format(iteration), "gt_sem")
+        makedirs(render_sem_path, exist_ok=True)
+        makedirs(gts_sem_path, exist_ok=True)
+
     for idx, view in enumerate(tqdm(views, desc="Rendering progress")):
         if gaussian_splatting:
             rendering = render(view, gaussians, pipeline, background)["render"]
         else: 
-            rendering = render(view, gaussians, pipeline, background, override_color=gaussians.get_features, features_splatting=True)["render"]
+            out = render(view, gaussians, pipeline, background, override_color=gaussians.get_features, features_splatting=True)
+            rendering = out["render"]
+            if gaussians.n_classes>0:
+                sem_render, _ = mapClassesToRGB(out["segmentation"].argmax(0), data_mapping)
+                sem_gt, _ = mapClassesToRGB(view.original_semantic.cuda().squeeze(0), data_mapping)
+                
         if save:
             gt = view.original_image[0:3, :, :]
             torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(idx) + ".png"))
             torchvision.utils.save_image(gt, os.path.join(gts_path, '{0:05d}'.format(idx) + ".png"))
+            if gaussians.n_classes>0:
+
+                torchvision.utils.save_image(torch.from_numpy(sem_render).permute(2,0,1), os.path.join(render_sem_path, '{0:05d}'.format(idx) + ".png"))
+                torchvision.utils.save_image(torch.from_numpy(sem_gt).permute((2,0,1)), os.path.join(gts_sem_path, '{0:05d}'.format(idx) + ".png"))
+
 
 def render_sets(dataset : ModelParams, iteration : int, pipeline : PipelineParams, skip_train : bool, skip_test : bool, gaussian_splatting : bool, save : bool = True):
     with torch.no_grad():
