@@ -157,7 +157,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 progress_bar.close()
 
             # Log and save
-            training_report(tb_writer, iteration, Ll1, loss, l1_loss, ce_loss, mIoU, iter_start.elapsed_time(iter_end), testing_iterations, scene, render, (pipe, background))
+            training_report(tb_writer, iteration, Ll1, loss, l1_loss, ce_loss, mIoU, iter_start.elapsed_time(iter_end), testing_iterations, scene, render, (pipe, background), gaussian_splatting)
             if (iteration in saving_iterations):
                 print("\n[ITER {}] Saving Gaussians".format(iteration))
                 scene.save(iteration)
@@ -206,7 +206,7 @@ def prepare_output_and_logger(args):
         print("Tensorboard not available: not logging progress")
     return tb_writer
 
-def training_report(tb_writer, iteration, Ll1, loss, l1_loss, ce_loss, mIoU, elapsed, testing_iterations, scene : Scene, renderFunc, renderArgs):
+def training_report(tb_writer, iteration, Ll1, loss, l1_loss, ce_loss, mIoU, elapsed, testing_iterations, scene : Scene, renderFunc, renderArgs, gaussian_splatting):
     if tb_writer:
         tb_writer.add_scalar('train_loss_patches/l1_loss', Ll1.item(), iteration)
         tb_writer.add_scalar('train_loss_patches/total_loss', loss.item(), iteration)
@@ -225,7 +225,7 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, ce_loss, mIoU, ela
                 ce_test = 0.0
                 #mIoU_test = 0.0
                 for idx, viewpoint in enumerate(config['cameras']):
-                    out = renderFunc(viewpoint, scene.gaussians, *renderArgs,override_color=scene.gaussians.get_features)
+                    out = renderFunc(viewpoint, scene.gaussians, *renderArgs,override_color=scene.gaussians.get_features,features_splatting=not gaussian_splatting)
                     image = torch.clamp(out["render"], 0.0, 1.0)
                     segmentation = out["segmentation"]
                     
