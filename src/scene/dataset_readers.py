@@ -250,17 +250,20 @@ def readCamerasFromTransforms(path, transformsfile, white_background, extension=
             
     return cam_infos
 
-def readNerfSyntheticInfo(path, white_background, eval, extension=".png", semantic_classes=0):
-    print("Reading Training Transforms")
-    train_cam_infos = readCamerasFromTransforms(path, "transforms_train.json", white_background, extension, n_classes=semantic_classes)
+def readNerfSyntheticInfo(path, white_background, eval, extension=".png", semantic_classes=0, load_train = True):
     print("Reading Test Transforms")
     test_cam_infos = readCamerasFromTransforms(path, "transforms_test.json", white_background, extension, n_classes=semantic_classes)
-    
-    if not eval:
-        train_cam_infos.extend(test_cam_infos)
-        test_cam_infos = []
+    train_cam_infos, nerf_normalization = None, None
 
-    nerf_normalization = getNerfppNorm(train_cam_infos)
+    if load_train:
+        print("Reading Training Transforms")
+        train_cam_infos = readCamerasFromTransforms(path, "transforms_train.json", white_background, extension, n_classes=semantic_classes)
+    
+        if not eval:
+            train_cam_infos.extend(test_cam_infos)
+            test_cam_infos = []
+
+        nerf_normalization = getNerfppNorm(train_cam_infos)
 
     ply_path = os.path.join(path, "points3D.ply")
     if not os.path.exists(ply_path):
