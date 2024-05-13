@@ -9,23 +9,22 @@
 # For inquiries contact  george.drettakis@inria.fr
 #
 
-import os
 import torch
+from scene import Scene
+import os
+from tqdm import tqdm
 from random import randint
+from deep_gaussian_renderer import render, network_gui
+from utils.general_utils import safe_state
+from argparse import ArgumentParser, Namespace
+from arguments import ModelParams, PipelineParams, OptimizationParams
+from deep_gaussian_model import DeepGaussianModel, GaussianModel
+import sys
+import uuid
+from utils.seg_utils import mapClassesToRGB, loadSemanticClasses
 from utils.loss_utils import l1_loss, ssim
 from torchmetrics.classification import MulticlassJaccardIndex
-from deep_gaussian_renderer import render, network_gui
-import sys
-from scene import Scene
-from utils.general_utils import safe_state
-import uuid
-from tqdm import tqdm
 from utils.image_utils import psnr
-from argparse import ArgumentParser, Namespace
-from deep_gaussian_model import DeepGaussianModel
-from scene import GaussianModel
-from arguments import ModelParams, PipelineParams, OptimizationParams
-from utils.seg_utils import mapClassesToRGB, loadSemanticClasses
 try:
     from torch.utils.tensorboard import SummaryWriter
     TENSORBOARD_FOUND = True
@@ -112,7 +111,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
         gaussians.update_learning_rate(iteration)
         # Every 1000 its we increase the levels of SH up to a maximum degree
-        if iteration % 1000 == 0 and gaussian_splatting:
+        if gaussian_splatting and iteration % 1000 == 0 :
             gaussians.oneupSHdegree()
 
         # Pick a random Camera
@@ -158,7 +157,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 progress_bar.close()
 
             # Log and save
-            training_report(tb_writer, iteration, Ll1, loss, l1_loss, ce_loss, mIoU, iter_start.elapsed_time(iter_end), testing_iterations, scene, render, (pipe, background))
+            training_report(tb_writer, iteration, Ll1, loss, l1_loss, ce_loss, mIoU, iter_start.elapsed_time(iter_end), testing_iterations, scene, render, (pipe, background), gaussian_splatting)
             if (iteration in saving_iterations):
                 print("\n[ITER {}] Saving Gaussians".format(iteration))
                 scene.save(iteration)
@@ -207,7 +206,7 @@ def prepare_output_and_logger(args):
         print("Tensorboard not available: not logging progress")
     return tb_writer
 
-def training_report(tb_writer, iteration, Ll1, loss, l1_loss, ce_loss, mIoU, elapsed, testing_iterations, scene : Scene, renderFunc, renderArgs):
+def training_report(tb_writer, iteration, Ll1, loss, l1_loss, ce_loss, mIoU, elapsed, testing_iterations, scene : Scene, renderFunc, renderArgs, gaussian_splatting):
     if tb_writer:
         tb_writer.add_scalar('train_loss_patches/l1_loss', Ll1.item(), iteration)
         tb_writer.add_scalar('train_loss_patches/total_loss', loss.item(), iteration)
@@ -226,7 +225,7 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, ce_loss, mIoU, ela
                 ce_test = 0.0
                 #mIoU_test = 0.0
                 for idx, viewpoint in enumerate(config['cameras']):
-                    out = renderFunc(viewpoint, scene.gaussians, *renderArgs,override_color=scene.gaussians.get_features)
+                    out = renderFunc(viewpoint, scene.gaussians, *renderArgs,override_color=scene.gaussians.get_features,features_splatting=not gaussian_splatting)
                     image = torch.clamp(out["render"], 0.0, 1.0)
                     segmentation = out["segmentation"]
                     
