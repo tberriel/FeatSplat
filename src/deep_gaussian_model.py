@@ -65,13 +65,11 @@ class DeepGaussianModel(GaussianModel):
         mlp = [nn.Linear(n_latents+embedding_size, 64),
             nn.SiLU()]
         for i in range(h_layers):
-            mlp.append(
-                nn.Linear(64, 64),
-                nn.SiLU()
-                )
-        mlp. append(nn.Linear(64,3*(sh_degree+1)**2+n_classes))
+            mlp+=[nn.Linear(64, 64),
+                nn.SiLU()]
+        mlp+=[nn.Linear(64,3*(sh_degree+1)**2+n_classes)]
         self.mlp = nn.Sequential(*mlp).cuda()
-        
+
         self.setup_functions()
 
     def capture(self):
@@ -135,22 +133,28 @@ class DeepGaussianModel(GaussianModel):
         - Output is 3xHxW
         """
         _, h, w = latent_features.shape
-        if self.pos_embedding:
-            camera_pos = camera_pos[...,None, None].repeat((1, h,w))
-            latent_features = torch.cat([latent_features,camera_pos] )
-        if self.rot_embedding:
-            camera_rot = camera_rot[...,None, None].repeat((1, h,w))
-            latent_features = torch.cat([latent_features,camera_rot] )
-
+        x = latent_features.flatten(1,2).permute(1,0)
+        embeddings = []
         if self.pixel_embedding:
             if self.p_embedding is None or (self.p_embedding.shape[1] != h or self.p_embedding.shape[2] != w):
                 umap = torch.linspace(-1, 1, w, device = latent_features.device)
                 vmap = torch.linspace(-1, 1, h, device = latent_features.device)
                 umap, vmap = torch.meshgrid(umap, vmap, indexing='xy')
                 points_2d = torch.stack((umap, vmap), -1).float()
-                self.p_embedding =  points_2d.permute(2,0,1)
-            latent_features = torch.cat([latent_features,self.p_embedding] )
-        rendered_image = self.mlp(latent_features)
+                self.p_embedding =  points_2d.flatten(0,1)
+            embeddings.append(self.p_embedding)
+
+        if self.pos_embedding:
+            camera_pos = camera_pos[None,...].repeat((h*w, 1))
+            embeddings.append(camera_pos)
+        if self.rot_embedding:
+            embeddings.append(camera_rot)
+            camera_rot = camera_rot[None,...].repeat((h*w, 1))
+
+        x = torch.cat([x]+embeddings, axis=-1 )
+
+        rendered_image = self.mlp(x).permute(1,0)[...,None].reshape((3,h,w))
+
         if self.n_classes > 0: 
             segmentation_image = rendered_image[3*(self.active_sh_degree+1)**2:]
             rendered_image = rendered_image[:3*(self.active_sh_degree+1)**2]
