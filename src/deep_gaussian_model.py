@@ -71,7 +71,7 @@ class DeepGaussianModel(GaussianModel):
                 )
         mlp. append(nn.Linear(64,3*(sh_degree+1)**2+n_classes))
         self.mlp = nn.Sequential(*mlp).cuda()
-
+        
         self.setup_functions()
 
     def capture(self):
