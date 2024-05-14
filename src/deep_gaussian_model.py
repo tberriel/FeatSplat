@@ -1,9 +1,10 @@
 import torch
+
 import numpy as np
 from torch import nn
 import os
 from plyfile import PlyData, PlyElement
-from utils.general_utils import inverse_sigmoid, get_expon_lr_func, build_rotation
+from utils.general_utils import inverse_sigmoid, get_expon_lr_func, get_linear_lr_func, build_rotation
 from utils.system_utils import mkdir_p
 #from src.utils.sh_utils import RGB2SH
 from simple_knn._C import distCUDA2
@@ -217,12 +218,27 @@ class DeepGaussianModel(GaussianModel):
                                                     lr_final=training_args.position_lr_final*self.spatial_lr_scale,
                                                     lr_delay_mult=training_args.position_lr_delay_mult,
                                                     max_steps=training_args.position_lr_max_steps)
+        self.mlp_scheduler_args = get_linear_lr_func(lr_init= training_args.mlp_lr_init,
+                                                    lr_final=training_args.mlp_lr_final,
+                                                    max_steps=training_args.mlp_lr_max_steps)
+        self.features_scheduler_args = get_linear_lr_func(lr_init= training_args.feature_lr_init,
+                                                    lr_final=training_args.feature_lr_final,
+                                                    max_steps=training_args.feature_lr_max_steps)
+        
 
     def update_learning_rate(self, iteration):
         ''' Learning rate scheduling per step '''
         for param_group in self.optimizer.param_groups:
             if param_group["name"] == "xyz":
                 lr = self.xyz_scheduler_args(iteration)
+                param_group['lr'] = lr
+                return lr
+            elif param_group["name"] == "mlp":
+                lr = self.mlp_scheduler_args(iteration)
+                param_group['lr'] = lr
+                return lr
+            elif param_group["name"] == "f_nn":
+                lr = self.features_scheduler_args(iteration)
                 param_group['lr'] = lr
                 return lr
 
