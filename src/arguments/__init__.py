@@ -47,7 +47,7 @@ class ParamGroup:
 class ModelParams(ParamGroup): 
     def __init__(self, parser, sentinel=False):
         self.sh_degree = 0
-        self.n_latents = 16
+        self.n_latents = 32
         self.n_classes = 64
         self.h_layers = 0
         self.pixel_embedding = False
@@ -82,8 +82,12 @@ class OptimizationParams(ParamGroup):
         self.position_lr_final = 0.0000016
         self.position_lr_delay_mult = 0.01
         self.position_lr_max_steps = 30_000
-        self.feature_lr = 0.0025
-        self.mlp_lr = 0.0005
+        self.feature_lr_init = 0.0025
+        self.feature_lr_final = 0.00025
+        self.feature_lr_max_steps = 30000
+        self.mlp_lr_init = 0.001
+        self.mlp_lr_final = 0.0001
+        self.mlp_lr_max_steps = 30000
         self.opacity_lr = 0.05
         self.scaling_lr = 0.005
         self.rotation_lr = 0.001

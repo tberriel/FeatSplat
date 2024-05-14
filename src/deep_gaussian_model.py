@@ -63,14 +63,14 @@ class DeepGaussianModel(GaussianModel):
             embedding_size +=3
         if rot_embedding:
             embedding_size +=3
-        mlp = [nn.Linear(n_latents+embedding_size, 64),
+        mlp = [nn.Linear(n_latents+embedding_size, 128),
             nn.SiLU()]
         for i in range(h_layers):
-            mlp+=[nn.Linear(64, 64),
+            mlp+=[nn.Linear(128, 128),
                 nn.SiLU()]
-        mlp+=[nn.Linear(64,3*(sh_degree+1)**2+n_classes)]
+        mlp+=[nn.Linear(128,3*(sh_degree+1)**2+n_classes)]
         self.mlp = nn.Sequential(*mlp).cuda()
-
+        
         self.setup_functions()
 
     def capture(self):
@@ -151,7 +151,7 @@ class DeepGaussianModel(GaussianModel):
         if self.rot_embedding:
             embeddings.append(camera_rot)
             camera_rot = camera_rot[None,...].repeat((h*w, 1))
-
+            
         x = torch.cat([x]+embeddings, axis=-1 )
 
         rendered_image = self.mlp(x).permute(1,0)[...,None].reshape((3,h,w))
@@ -207,11 +207,11 @@ class DeepGaussianModel(GaussianModel):
 
         l = [
             {'params': [self._xyz], 'lr': training_args.position_lr_init * self.spatial_lr_scale, "name": "xyz"},
-            {'params': [self.latent_features], 'lr': training_args.feature_lr, "name": "f_nn"},
+            {'params': [self.latent_features], 'lr': training_args.feature_lr_init, "name": "f_nn"},
             {'params': [self._opacity], 'lr': training_args.opacity_lr, "name": "opacity"},
             {'params': [self._scaling], 'lr': training_args.scaling_lr, "name": "scaling"},
             {'params': [self._rotation], 'lr': training_args.rotation_lr, "name": "rotation"},
-            {'params': [x for x in self.mlp.parameters()], 'lr': training_args.mlp_lr, "name": "mlp"},
+            {'params': [x for x in self.mlp.parameters()], 'lr': training_args.mlp_lr_init, "name": "mlp"},
         ]
         self.optimizer = torch.optim.Adam(l, lr=0.0, eps=1e-15)
         self.xyz_scheduler_args = get_expon_lr_func(lr_init=training_args.position_lr_init*self.spatial_lr_scale,
@@ -232,15 +232,12 @@ class DeepGaussianModel(GaussianModel):
             if param_group["name"] == "xyz":
                 lr = self.xyz_scheduler_args(iteration)
                 param_group['lr'] = lr
-                return lr
             elif param_group["name"] == "mlp":
                 lr = self.mlp_scheduler_args(iteration)
                 param_group['lr'] = lr
-                return lr
             elif param_group["name"] == "f_nn":
                 lr = self.features_scheduler_args(iteration)
                 param_group['lr'] = lr
-                return lr
 
     def construct_list_of_attributes(self):
         l = ['x', 'y', 'z', 'nx', 'ny', 'nz']

@@ -10,6 +10,7 @@
 #
 
 import torch
+import math
 import sys
 from datetime import datetime
 import numpy as np
@@ -174,3 +175,33 @@ def safe_state(silent):
     np.random.seed(0)
     torch.manual_seed(0)
     torch.cuda.set_device(torch.device("cuda:0"))
+
+
+
+class PositionalEncoding(torch.nn.Module):
+    def __init__(self, num_octaves=8, start_octave=0, end_octave=None):
+        super().__init__()
+        self.num_octaves = num_octaves
+        self.start_octave = start_octave
+        self.end_octave = end_octave
+
+    def forward(self, coords):
+        embed_fns = []
+        num_points, dim = coords.shape
+        if self.end_octave is not None:
+            octaves = torch.linspace(self.start_octave, self.end_octave, self.num_octaves, device=coords.device, dtype=torch.float32)
+            multipliers = octaves * math.pi
+        else:
+            octaves = torch.arange(self.start_octave, self.start_octave + self.num_octaves, device=coords.device, dtype=torch.float32)
+            multipliers = 2**octaves * math.pi
+        coords = coords.unsqueeze(-1)
+        while len(multipliers.shape) < len(coords.shape):
+            multipliers = multipliers.unsqueeze(0)
+
+        scaled_coords = coords * multipliers
+
+        sines = torch.sin(scaled_coords).reshape(num_points, dim * self.num_octaves)
+        cosines = torch.cos(scaled_coords).reshape(num_points, dim * self.num_octaves)
+
+        result = torch.cat((sines, cosines), -1)
+        return result
