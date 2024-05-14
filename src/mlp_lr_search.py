@@ -15,8 +15,8 @@ import json
 
 mipnerf360_outdoor_scenes =[]#["bicycle"]
 deep_blending_scenes = []#["playroom", "drjohnson"]
-tanks_and_temples_scenes = ["train"]
-
+tanks_and_temples_scenes = []#"train"
+scannetpp_scenes = ["5d152fab1b" , "5656608266", "c0f5742640" ]#
 parser = ArgumentParser(description="Full evaluation script parameters")
 parser.add_argument("--skip_training", action="store_true")
 parser.add_argument("--skip_rendering", action="store_true")
@@ -25,28 +25,31 @@ parser.add_argument("--output_path", default="./eval/lr_search/")
 parser.add_argument("--n_classes", default=0, type=int)
 parser.add_argument("--iterations", default=2, type=int)
 parser.add_argument("--sh_degree", default=0, type=int)
+parser.add_argument("--h_layers", default=0, type=int)
 parser.add_argument("--pembedding", action="store_true")
 parser.add_argument("--cam_pos", action="store_true")
 parser.add_argument("--cam_rot", action="store_true")
 args, _ = parser.parse_known_args()
-lr_values = [0.001,]
+lr_values = [0.001, 0.0001, 0.0005]
 iterations = 2
 all_scenes = []
 all_scenes.extend(mipnerf360_outdoor_scenes)
 all_scenes.extend(deep_blending_scenes)
 all_scenes.extend(tanks_and_temples_scenes)
+all_scenes.extend(scannetpp_scenes)
 
 if not args.skip_training or not args.skip_rendering:
-    parser.add_argument('--mipnerf360', "-m360", required=True, type=str)
-    parser.add_argument("--tanksandtemples", "-tat", required=True, type=str)
-    parser.add_argument("--deepblending", "-db", required=True, type=str)
+    #parser.add_argument('--mipnerf360', "-m360", required=True, type=str)
+    #parser.add_argument("--tanksandtemples", "-tat", required=True, type=str)
+    #parser.add_argument("--deepblending", "-db", required=True, type=str)
+    parser.add_argument("--scannetpp", required=True, type=str)
     args = parser.parse_args()
 
 if not args.skip_training:
 
     for i in range(args.iterations):
         for lr in lr_values:
-            common_args = f" --quiet --eval --test_iterations -1 --n_classes {args.n_classes} --mlp_lr {lr} --sh_degree {args.sh_degree}"
+            common_args = f" --eval --n_classes {args.n_classes} --mlp_lr {lr} --sh_degree {args.sh_degree} --h_layers {args.h_layers}"
             if args.pembedding:
                 common_args += " --pixel_embedding"
             if args.cam_pos:
@@ -62,6 +65,9 @@ if not args.skip_training:
             for scene in tanks_and_temples_scenes:
                 source = args.tanksandtemples + "/" + scene
                 os.system("python src/train.py -s " + source + " -m " + args.output_path + "/" + scene+f"_lr{lr}_{i}" + common_args)
+            for scene in scannetpp_scenes:
+                source = args.scannetpp + "/" + scene
+                os.system("python src/train.py -s " + source + " -r 1 -m " +  os.path.join(args.output_path,scene+f"_lr{lr}_{i}") + common_args)
 
 if not args.skip_rendering:
     all_sources = []
@@ -71,9 +77,11 @@ if not args.skip_rendering:
         all_sources.append(args.deepblending + "/" + scene)
     for scene in tanks_and_temples_scenes:
         all_sources.append(args.tanksandtemples + "/" + scene)
+    for scene in scannetpp_scenes:
+        all_sources.append(args.scannetpp + "/" + scene)
     for lr in lr_values:
         for i in range(args.iterations):
-            common_args = f" --quiet --eval --skip_train --n_classes {args.n_classes} --sh_degree {args.sh_degree}"
+            common_args = f" --quiet --eval --skip_train --n_classes {args.n_classes} --sh_degree {args.sh_degree} --h_layers {args.h_layers}"
             if args.pembedding:
                 common_args += " --pixel_embedding"
             if args.cam_pos:
@@ -82,6 +90,7 @@ if not args.skip_rendering:
                 common_args += " --rot_embedding"
             for scene, source in zip(all_scenes, all_sources):
                 os.system("python src/render.py --iteration 7000 -s " + source + " -m " + args.output_path + "/" + scene+f"_lr{lr}_{i}" + common_args)
+                os.system("python src/render.py --iteration 14000 -s " + source + " -m " + args.output_path + "/" + scene+f"_lr{lr}_{i}" + common_args)
                 os.system("python src/render.py --iteration 30000 -s " + source + " -m " + args.output_path + "/" + scene+f"_lr{lr}_{i}" + common_args)
 
 if not args.skip_metrics:
