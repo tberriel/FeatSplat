@@ -131,13 +131,13 @@ if not args.skip_rendering:
         elif scene in args.deep_blending_scenes:
             dataset = "db"
         os.system("python src/render.py --iteration 7000 -s " + source + " -m " + os.path.join(args.output_path,dataset,scene) + common_args)
+        os.system("python src/render.py --iteration 21000 -s " + source + " -m " + os.path.join(args.output_path,dataset,scene) + common_args)
         os.system("python src/render.py --iteration 30000 -s " + source + " -m " + os.path.join(args.output_path,dataset,scene) + common_args)
     for scene in args.scannetpp_scenes:
         for i in range(args.iterations):
             os.system("python src/render.py --iteration 7000 -s " + args.scannetpp + "/" + scene + " -m " + os.path.join(args.output_path,args.scannetpp_set,scene+name_suffix+f"_{i}") + " -r 1 "+ common_args)
-            os.system("python src/render.py --iteration 14000 -s " + args.scannetpp + "/" + scene + " -m " + os.path.join(args.output_path,args.scannetpp_set,scene+name_suffix+f"_{i}") + " -r 1 "+ common_args)
             os.system("python src/render.py --iteration 21000 -s " + args.scannetpp + "/" + scene + " -m " + os.path.join(args.output_path,args.scannetpp_set,scene+name_suffix+f"_{i}") + " -r 1 "+ common_args)
-            #os.system("python src/render.py --iteration 30000 -s " + args.scannetpp + "/" + scene + " -m " + os.path.join(args.output_path,args.scannetpp_set,scene+name_suffix+f"_{i}") + " -r 1 "+ common_args)
+            os.system("python src/render.py --iteration 30000 -s " + args.scannetpp + "/" + scene + " -m " + os.path.join(args.output_path,args.scannetpp_set,scene+name_suffix+f"_{i}") + " -r 1 "+ common_args)
 
 
 if not args.skip_metrics:
