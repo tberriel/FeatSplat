@@ -34,15 +34,15 @@ class DeepGaussianModel(GaussianModel):
         self.rotation_activation = torch.nn.functional.normalize
 
 
-    def __init__(self, sh_degree:int, n_latents : int, n_classes : int, pixel_embedding : bool, pos_embedding : bool, rot_embedding : bool, h_layers : int):
+    def __init__(self, opt):
         #super().__init__(sh_degree)
-        self.active_sh_degree = sh_degree
-        self.max_sh_degree = sh_degree
-        self.n_latents = n_latents  
-        self.n_classes = n_classes
-        self.pixel_embedding = pixel_embedding
-        self.pos_embedding = pos_embedding
-        self.rot_embedding = rot_embedding
+        self.active_sh_degree = opt.sh_degree
+        self.max_sh_degree = opt.sh_degree
+        self.n_latents = opt.n_latents  
+        self.n_classes = opt.n_classes
+        self.pixel_embedding = opt.pixel_embedding
+        self.pos_embedding = opt.pos_embedding
+        self.rot_embedding = opt.rot_embedding
         self.p_embedding  = None
         self._xyz = torch.empty(0)
         self.latent_features = torch.empty(0)
@@ -55,20 +55,20 @@ class DeepGaussianModel(GaussianModel):
         self.optimizer = None
         self.percent_dense = 0
         self.spatial_lr_scale = 0
-        self.n_classes = n_classes
+        self.n_classes = opt.n_classes
         embedding_size =0
-        if pixel_embedding:
+        if opt.pixel_embedding:
             embedding_size +=2
-        if pos_embedding:
+        if opt.pos_embedding:
             embedding_size +=3
-        if rot_embedding:
+        if opt.rot_embedding:
             embedding_size +=3
-        mlp = [nn.Linear(n_latents+embedding_size, 128),
+        mlp = [nn.Linear(opt.n_latents+embedding_size, opt.n_neurons),
             nn.SiLU()]
-        for i in range(h_layers):
-            mlp+=[nn.Linear(128, 128),
+        for i in range(opt.h_layers):
+            mlp+=[nn.Linear(opt.n_neurons, opt.n_neurons),
                 nn.SiLU()]
-        mlp+=[nn.Linear(128,3*(sh_degree+1)**2+n_classes)]
+        mlp+=[nn.Linear(opt.n_neurons,3*(opt.sh_degree+1)**2+opt.n_classes)]
         self.mlp = nn.Sequential(*mlp).cuda()
         
         self.setup_functions()

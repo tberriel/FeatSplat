@@ -28,6 +28,7 @@ parser.add_argument("--skip_comp_metrics", action="store_true")
 parser.add_argument("--output_path", default="./eval")
 parser.add_argument("--n_classes", default=0, type=int)
 parser.add_argument("--h_layers", default=0, type=int)
+parser.add_argument("--n_neurons", default=64, type=int)
 parser.add_argument("--lambda_sem", default=0.001, type=float)
 parser.add_argument("--pembedding", action="store_true")
 parser.add_argument("--cam_pos", action="store_true")
@@ -69,7 +70,7 @@ if len(args.scannetpp_scenes) == 0 and args.scannetpp:
         assert False, "Either pass a set of ScanNet++ scenes, or select a set from ['scannet_sem', 'scannet_nvs', 'scannet_rest']"
 
 if not args.skip_training:
-    common_args = f" --quiet --eval --test_iterations -1 --n_classes {args.n_classes} --sh_degree {args.sh_degree} --data_device {args.data_device} --h_layers {args.h_layers}"
+    common_args = f" --quiet --eval --test_iterations -1 --n_classes {args.n_classes} --sh_degree {args.sh_degree} --data_device {args.data_device} --h_layers {args.h_layers} --n_neurons {args.n_neurons}"
     if args.pembedding:
         common_args += " --pixel_embedding "
     if args.cam_pos:
@@ -114,7 +115,7 @@ if not args.skip_rendering:
     for scene in args.deep_blending_scenes:
         all_sources.append(args.deepblending + "/" + scene)
 
-    common_args = f" --quiet --eval --skip_train --n_classes {args.n_classes} --sh_degree {args.sh_degree} --data_device {args.data_device} --h_layers {args.h_layers}"
+    common_args = f" --quiet --eval --skip_train --n_classes {args.n_classes} --sh_degree {args.sh_degree} --data_device {args.data_device} --h_layers {args.h_layers} --n_neurons {args.n_neurons}"
     if args.pembedding:
         common_args += " --pixel_embedding "
     if args.cam_pos:

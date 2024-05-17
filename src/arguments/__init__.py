@@ -50,6 +50,7 @@ class ModelParams(ParamGroup):
         self.n_latents = 32
         self.n_classes = 64
         self.h_layers = 0
+        self.n_neurons = 64
         self.pixel_embedding = False
         self.pos_embedding = False
         self.rot_embedding = False

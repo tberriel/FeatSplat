@@ -59,7 +59,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         assert dataset.n_classes == 0, "Gaussian Splatting does not predict semantics. Set n_classes to 0."
         gaussians = GaussianModel(dataset.sh_degree)
     else:
-        gaussians = DeepGaussianModel(0, dataset.n_latents, dataset.n_classes, dataset.pixel_embedding, dataset.pos_embedding,dataset.rot_embedding, dataset.h_layers)
+        gaussians = DeepGaussianModel(dataset)
 
     scene = Scene(dataset, gaussians)
     gaussians.training_setup(opt)
