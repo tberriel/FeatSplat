@@ -6,7 +6,6 @@
 # This software is free for non-commercial, research and evaluation use 
 # under the terms of the LICENSE.md file.
 #
-# For inquiries contact  george.drettakis@inria.fr
 #
 
 import torch
@@ -14,13 +13,15 @@ from scene import Scene
 import os
 from tqdm import tqdm
 from os import makedirs
-from deep_gaussian_renderer import render
+from feat_gaussian_renderer import render
 from utils.seg_utils import mapClassesToRGB, loadSemanticClasses
 import torchvision
 from utils.general_utils import safe_state
 from argparse import ArgumentParser
 from arguments import ModelParams, PipelineParams, get_combined_args
-from deep_gaussian_model import DeepGaussianModel, GaussianModel
+from scene.feat_gaussian_model import FeatGaussianModel
+from scene.gaussian_model import GaussianModel
+from scene.gaussian_model import GaussianModel
 
 def render_set(model_path, name, iteration, views, gaussians, pipeline, background, save, gaussian_splatting):
     render_path = os.path.join(model_path, name, "ours_{}".format(iteration), "renders")
@@ -62,7 +63,7 @@ def render_sets(dataset : ModelParams, iteration : int, pipeline : PipelineParam
             assert dataset.n_classes == 0, "Gaussian Splatting does not predict semantics. Set n_classes to 0."
             gaussians = GaussianModel(dataset.sh_degree)
         else:
-            gaussians = DeepGaussianModel(dataset)
+            gaussians = FeatGaussianModel(dataset)
         scene = Scene(dataset, gaussians, load_iteration=iteration, shuffle=False)
         if gaussian_splatting:
             bg_color = [1, 1, 1] if dataset.white_background else [0, 0, 0]

@@ -6,18 +6,16 @@
 # This software is free for non-commercial, research and evaluation use 
 # under the terms of the LICENSE.md file.
 #
-# For inquiries contact  george.drettakis@inria.fr
 #
 
 import os
 from argparse import ArgumentParser
-import json
 from computation_metrics import computation_metrics
 
 # total of 380 scenes: 24 scenes for segmentation experiment ; 100 scenes for NVS benchmark; 254 scenes rest
-scannetpp_sem_scenes =['0a5c013435', 'f07340dfea',  '7bc286c1b6', 'd2f44bf242',  '85251de7d1', '0e75f3c4d9', '98fe276aa8', '7e7cd69a59', 'f3685d06a9', '21d970d8de', '8b5caf3398', 'ada5304e41', '4c5c60fa76', 'ebc200e928', 'a5114ca13d', '5942004064', '1ada7a0617','f6659a3107', '1a130d092a', '80ffca8a48',   '08bbbdcc3d',]# oom 54b6127146, to render both gs and fs: 'bb87c292ad', '108ec0b806', 'a4e227f506'; oom for render fs: 'a08d9a2476',
-scannetpp_nvs_scenes = os.listdir("/home/tberriel/Workspaces/splatting_ws/deep_splatting/eval/featsplat_32/scannet_nvs")
-scannetpp_rest_scenes = [x[:-2] for x in os.listdir("/home/tberriel/Workspaces/splatting_ws/deep_splatting/eval/featsplat_32/scannet_rest")]
+scannetpp_scenes =['0a5c013435', 'f07340dfea',  '7bc286c1b6', 'd2f44bf242',  '85251de7d1', '0e75f3c4d9', '98fe276aa8', '7e7cd69a59', 'f3685d06a9', '21d970d8de', '8b5caf3398', 'ada5304e41', '4c5c60fa76', 'ebc200e928', 'a5114ca13d', '5942004064', '1ada7a0617','f6659a3107', '1a130d092a', '80ffca8a48',   '08bbbdcc3d'],
+scannetpp_nvs_scenes = os.listdir("/home/tberriel/Workspaces/splatting_ws/deep_splatting/data/working/eval/featsplat_32/scannet_nvs")
+scannetpp_rest_scenes = [x[:-2] for x in os.listdir("/home/tberriel/Workspaces/splatting_ws/deep_splatting/data/working/eval/featsplat_32/scannet_rest")]
 
 
 parser = ArgumentParser(description="Full evaluation script parameters")
@@ -26,7 +24,7 @@ parser.add_argument("--skip_rendering", action="store_true")
 parser.add_argument("--skip_metrics", action="store_true")
 parser.add_argument("--skip_comp_metrics", action="store_true")
 parser.add_argument("--test_midway", action="store_true")
-parser.add_argument("--output_path", default="./eval")
+parser.add_argument("--output_path", default="./data/working/eval")
 parser.add_argument("--n_classes", default=0, type=int)
 parser.add_argument("--train_iterations", default=30_000, type=int)
 parser.add_argument("--h_layers", default=0, type=int)
@@ -63,7 +61,7 @@ else:
 
 if len(args.scannetpp_scenes) == 0 and args.scannetpp:
     if args.scannetpp_set == "scannet_sem":
-        args.scannetpp_scenes = scannetpp_sem_scenes
+        args.scannetpp_scenes = scannetpp_scenes
     elif args.scannetpp_set == "scannet_nvs":
         args.scannetpp_scenes = scannetpp_nvs_scenes
     elif args.scannetpp_set == "scannet_rest":
@@ -92,7 +90,7 @@ if not args.skip_training:
         os.system("python src/train.py -s " + source + " -i images_2 -m " + os.path.join(args.output_path,"360_v2",scene)+ common_args)
     for scene in args.tanks_and_temples_scenes:
         source = args.tanksandtemples + "/" + scene
-        os.system("python src/train.py -s " + source + " -m " + os.path.join(args.output_path,"tant",scene)+ common_args)
+        os.system("python src/train.py -s " + source + " -m " + os.path.join(args.output_path,"tandt",scene)+ common_args)
     for scene in args.deep_blending_scenes:
         source = args.deepblending + "/" + scene
         os.system("python src/train.py -s " + source + " -m " + os.path.join(args.output_path,"db",scene)+ common_args)
@@ -133,7 +131,7 @@ if not args.skip_rendering:
         if scene in  args.mipnerf360_indoor_scenes or scene in args.mipnerf360_outdoor_scenes:
             dataset = "360_v2"
         elif scene in  args.tanks_and_temples_scenes:
-            dataset = "tant"
+            dataset = "tandt"
         elif scene in args.deep_blending_scenes:
             dataset = "db"
         os.system("python src/render.py --iteration 7000 -s " + source + " -m " + os.path.join(args.output_path,dataset,scene) + common_args)
@@ -155,7 +153,7 @@ if not args.skip_metrics:
         if scene in  args.mipnerf360_indoor_scenes or scene in args.mipnerf360_outdoor_scenes:
             dataset = "360_v2"
         elif scene in  args.tanks_and_temples_scenes:
-            dataset = "tant"
+            dataset = "tandt"
         elif scene in args.deep_blending_scenes:
             dataset = "db"
         scenes_string += "\"" + os.path.join(args.output_path,dataset,scene) + "\" "
@@ -191,7 +189,7 @@ if not args.skip_comp_metrics:
         if scene in  args.mipnerf360_indoor_scenes or scene in args.mipnerf360_outdoor_scenes:
             dataset = "360_v2"
         elif scene in  args.tanks_and_temples_scenes:
-            dataset = "tant"
+            dataset = "tandt"
         elif scene in args.deep_blending_scenes:
             dataset = "db"
         try:

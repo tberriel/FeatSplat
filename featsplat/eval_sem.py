@@ -6,18 +6,17 @@
 # This software is free for non-commercial, research and evaluation use 
 # under the terms of the LICENSE.md file.
 #
-# For inquiries contact  george.drettakis@inria.fr
 #
 
 import os
 import torch
 from torchmetrics.classification import MulticlassJaccardIndex
-from deep_gaussian_renderer import render
+from feat_gaussian_renderer import render
 import sys
 from scene import Scene
 from utils.general_utils import safe_state
 from argparse import ArgumentParser, Namespace
-from deep_gaussian_model import DeepGaussianModel
+from scene.feat_gaussian_model import FeatGaussianModel
 from arguments import ModelParams, PipelineParams
 from tqdm import tqdm
 def _safe_divide(num, denom):

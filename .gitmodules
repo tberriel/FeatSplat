@@ -1,6 +1,3 @@
-[submodule "featsplat/submodules/gaussian-splatting"]
-	path = featsplat/submodules/gaussian-splatting
-	url = git@github.com:graphdeco-inria/gaussian-splatting.git
 [submodule "featsplat/submodules/simple-knn"]
 	path = featsplat/submodules/simple-knn
 	url = https://gitlab.inria.fr/bkerbl/simple-knn.git

@@ -6,36 +6,16 @@ import os
 from plyfile import PlyData, PlyElement
 from utils.general_utils import inverse_sigmoid, get_expon_lr_func, get_linear_lr_func, build_rotation
 from utils.system_utils import mkdir_p
-#from src.utils.sh_utils import RGB2SH
 from simple_knn._C import distCUDA2
 from utils.graphics_utils import BasicPointCloud
-from utils.general_utils import strip_symmetric, build_scaling_rotation
 
 from scene.gaussian_model import GaussianModel
 from utils.sh_utils import eval_sh
 
-class DeepGaussianModel(GaussianModel):
-
-    def setup_functions(self):
-        def build_covariance_from_scaling_rotation(scaling, scaling_modifier, rotation):
-            L = build_scaling_rotation(scaling_modifier * scaling, rotation)
-            actual_covariance = L @ L.transpose(1, 2)
-            symm = strip_symmetric(actual_covariance)
-            return symm
-        
-        self.scaling_activation = torch.exp
-        self.scaling_inverse_activation = torch.log
-
-        self.covariance_activation = build_covariance_from_scaling_rotation
-
-        self.opacity_activation = torch.sigmoid
-        self.inverse_opacity_activation = inverse_sigmoid
-
-        self.rotation_activation = torch.nn.functional.normalize
-
+class FeatGaussianModel(GaussianModel):
 
     def __init__(self, opt):
-        #super().__init__(sh_degree)
+        super().__init__(0)
         self.active_sh_degree = opt.sh_degree
         self.max_sh_degree = opt.sh_degree
         self.n_latents = opt.n_latents  
@@ -44,18 +24,9 @@ class DeepGaussianModel(GaussianModel):
         self.pos_embedding = opt.pos_embedding
         self.rot_embedding = opt.rot_embedding
         self.p_embedding  = None
-        self._xyz = torch.empty(0)
-        self.latent_features = torch.empty(0)
-        self._scaling = torch.empty(0)
-        self._rotation = torch.empty(0)
-        self._opacity = torch.empty(0)
-        self.max_radii2D = torch.empty(0)
-        self.xyz_gradient_accum = torch.empty(0)
-        self.denom = torch.empty(0)
-        self.optimizer = None
-        self.percent_dense = 0
-        self.spatial_lr_scale = 0
+        self._features = torch.empty(0)
         self.n_classes = opt.n_classes
+
         embedding_size =0
         if opt.pixel_embedding:
             embedding_size +=2
@@ -65,7 +36,7 @@ class DeepGaussianModel(GaussianModel):
             embedding_size +=3
         mlp = [nn.Linear(opt.n_latents+embedding_size, opt.n_neurons),
             nn.SiLU()]
-        for i in range(opt.h_layers):
+        for _ in range(opt.h_layers):
             mlp+=[nn.Linear(opt.n_neurons, opt.n_neurons),
                 nn.SiLU()]
         mlp+=[nn.Linear(opt.n_neurons,3*(opt.sh_degree+1)**2+opt.n_classes)]
@@ -76,7 +47,7 @@ class DeepGaussianModel(GaussianModel):
     def capture(self):
         return (self.n_latents,
             self._xyz,
-            self.latent_features,
+            self._features,
             self._scaling,
             self._rotation,
             self._opacity,
@@ -91,7 +62,7 @@ class DeepGaussianModel(GaussianModel):
     def restore(self, model_args, training_args):
         (self.n_latents, 
         self._xyz, 
-        self.latent_features, 
+        self._features, 
         self._scaling, 
         self._rotation, 
         self._opacity,
@@ -106,40 +77,24 @@ class DeepGaussianModel(GaussianModel):
         self.denom = denom
         self.optimizer.load_state_dict(opt_dict)
         self.mlp.load_state_dict(mlp_dict)
-
-    @property
-    def get_scaling(self):
-        return self.scaling_activation(self._scaling)
-    
-    @property
-    def get_rotation(self):
-        return self.rotation_activation(self._rotation)
-    
-    @property
-    def get_xyz(self):
-        return self._xyz
     
     @property
     def get_features(self):
         """Transform stred features to return SH features"""
-        return self.latent_features
+        return self._features
     
-    @property
-    def get_opacity(self):
-        return self.opacity_activation(self._opacity)
-    
-    def nn_forward(self, latent_features, camera_pos, camera_rot, camera_rays):
+    def nn_forward(self, projected_features, camera_pos, camera_rot, camera_rays):
         """ 
         - Input is n_latentsxHxW
         - Output is 3xHxW
         """
-        _, h, w = latent_features.shape
-        x = latent_features.flatten(1,2).permute(1,0)
+        _, h, w = projected_features.shape
+        x = projected_features.flatten(1,2).permute(1,0)
         embeddings = []
         if self.pixel_embedding:
             if self.p_embedding is None or (self.p_embedding.shape[1] != h or self.p_embedding.shape[2] != w):
-                umap = torch.linspace(-1, 1, w, device = latent_features.device)
-                vmap = torch.linspace(-1, 1, h, device = latent_features.device)
+                umap = torch.linspace(-1, 1, w, device = projected_features.device)
+                vmap = torch.linspace(-1, 1, h, device = projected_features.device)
                 umap, vmap = torch.meshgrid(umap, vmap, indexing='xy')
                 points_2d = torch.stack((umap, vmap), -1).float()
                 self.p_embedding =  points_2d.flatten(0,1)
@@ -170,19 +125,13 @@ class DeepGaussianModel(GaussianModel):
             rendered_image = torch.sigmoid(rendered_image)
         return rendered_image, segmentation_image
 
-    def get_covariance(self, scaling_modifier = 1):
-        return self.covariance_activation(self.get_scaling, scaling_modifier, self._rotation)
-
     def oneupSHdegree(self):
-        raise "DeepGaussianModel does not have this function"
+        raise "FeatGaussianModel does not allow a variable number of SH degrees."
 
     def create_from_pcd(self, pcd : BasicPointCloud, spatial_lr_scale : float):
-        #raise "Function not implemented for DeepGausianModel"
         self.spatial_lr_scale = spatial_lr_scale
         fused_point_cloud = torch.tensor(np.asarray(pcd.points)).float().cuda()
-        #features = RGB2NN_features(torch.tensor(np.asarray(pcd.colors)).float().cuda()) # TODO compute feature vector from RGB; for now initialize randomly
-        #fused_color = RGB2SH(torch.tensor(np.asarray(pcd.colors)).float().cuda())
-        features = torch.randn((fused_point_cloud.shape[0],self.n_latents))
+        features = torch.randn((fused_point_cloud.shape[0],self.n_latents)) 
 
         print("Number of points at initialisation : ", fused_point_cloud.shape[0])
 
@@ -194,7 +143,7 @@ class DeepGaussianModel(GaussianModel):
         opacities = inverse_sigmoid(0.1 * torch.ones((fused_point_cloud.shape[0], 1), dtype=torch.float, device="cuda"))
 
         self._xyz = nn.Parameter(fused_point_cloud.requires_grad_(True))
-        self.latent_features = nn.Parameter(features.contiguous().requires_grad_(True).cuda())
+        self._features = nn.Parameter(features.contiguous().requires_grad_(True).cuda())
         self._scaling = nn.Parameter(scales.requires_grad_(True))
         self._rotation = nn.Parameter(rots.requires_grad_(True))
         self._opacity = nn.Parameter(opacities.requires_grad_(True))
@@ -207,7 +156,7 @@ class DeepGaussianModel(GaussianModel):
 
         l = [
             {'params': [self._xyz], 'lr': training_args.position_lr_init * self.spatial_lr_scale, "name": "xyz"},
-            {'params': [self.latent_features], 'lr': training_args.feature_lr_init, "name": "f_nn"},
+            {'params': [self._features], 'lr': training_args.feature_lr_init, "name": "f_nn"},
             {'params': [self._opacity], 'lr': training_args.opacity_lr, "name": "opacity"},
             {'params': [self._scaling], 'lr': training_args.scaling_lr, "name": "scaling"},
             {'params': [self._rotation], 'lr': training_args.rotation_lr, "name": "rotation"},
@@ -228,11 +177,9 @@ class DeepGaussianModel(GaussianModel):
 
     def update_learning_rate(self, iteration):
         ''' Learning rate scheduling per step '''
+        super().update_learning_rate(iteration)
         for param_group in self.optimizer.param_groups:
-            if param_group["name"] == "xyz":
-                lr = self.xyz_scheduler_args(iteration)
-                param_group['lr'] = lr
-            elif param_group["name"] == "mlp":
+            if param_group["name"] == "mlp":
                 lr = self.mlp_scheduler_args(iteration)
                 param_group['lr'] = lr
             elif param_group["name"] == "f_nn":
@@ -240,15 +187,10 @@ class DeepGaussianModel(GaussianModel):
                 param_group['lr'] = lr
 
     def construct_list_of_attributes(self):
-        l = ['x', 'y', 'z', 'nx', 'ny', 'nz']
-        # All channels
-        for i in range(self.latent_features.shape[1]):
+        l = super().construct_list_of_attributes()
+        
+        for i in range(self._features.shape[1]):
             l.append('f_nn_{}'.format(i))
-        l.append('opacity')
-        for i in range(self._scaling.shape[1]):
-            l.append('scale_{}'.format(i))
-        for i in range(self._rotation.shape[1]):
-            l.append('rot_{}'.format(i))
         return l
 
     def save_ply(self, path):
@@ -256,7 +198,7 @@ class DeepGaussianModel(GaussianModel):
 
         xyz = self._xyz.detach().cpu().numpy()
         normals = np.zeros_like(xyz)
-        f_nn = self.latent_features.detach().contiguous().cpu().numpy()
+        f_nn = self._features.detach().contiguous().cpu().numpy()
         opacities = self._opacity.detach().cpu().numpy()
         scale = self._scaling.detach().cpu().numpy()
         rotation = self._rotation.detach().cpu().numpy()
@@ -270,11 +212,6 @@ class DeepGaussianModel(GaussianModel):
         PlyData([el]).write(path)
         mlp_path = os.path.join(os.path.split(path)[0],"mlp.ckpt")
         torch.save(self.mlp.state_dict(),mlp_path)
-
-    def reset_opacity(self):
-        opacities_new = inverse_sigmoid(torch.min(self.get_opacity, torch.ones_like(self.get_opacity)*0.01))
-        optimizable_tensors = self.replace_tensor_to_optimizer(opacities_new, "opacity")
-        self._opacity = optimizable_tensors["opacity"]
 
     def load_ply(self, path):
         plydata = PlyData.read(path)
@@ -304,7 +241,7 @@ class DeepGaussianModel(GaussianModel):
             rots[:, idx] = np.asarray(plydata.elements[0][attr_name])
 
         self._xyz = nn.Parameter(torch.tensor(xyz, dtype=torch.float, device="cuda").requires_grad_(True))
-        self.latent_features = nn.Parameter(torch.tensor(features, dtype=torch.float, device="cuda").contiguous().requires_grad_(True))
+        self._features = nn.Parameter(torch.tensor(features, dtype=torch.float, device="cuda").contiguous().requires_grad_(True))
         self._opacity = nn.Parameter(torch.tensor(opacities, dtype=torch.float, device="cuda").requires_grad_(True))
         self._scaling = nn.Parameter(torch.tensor(scales, dtype=torch.float, device="cuda").requires_grad_(True))
         self._rotation = nn.Parameter(torch.tensor(rots, dtype=torch.float, device="cuda").requires_grad_(True))
@@ -352,7 +289,7 @@ class DeepGaussianModel(GaussianModel):
         optimizable_tensors = self._prune_optimizer(valid_points_mask)
 
         self._xyz = optimizable_tensors["xyz"]
-        self.latent_features = optimizable_tensors["f_nn"]
+        self._features = optimizable_tensors["f_nn"]
         self._opacity = optimizable_tensors["opacity"]
         self._scaling = optimizable_tensors["scaling"]
         self._rotation = optimizable_tensors["rotation"]
@@ -396,7 +333,7 @@ class DeepGaussianModel(GaussianModel):
 
         optimizable_tensors = self.cat_tensors_to_optimizer(d)
         self._xyz = optimizable_tensors["xyz"]
-        self.latent_features = optimizable_tensors["f_nn"]
+        self._features = optimizable_tensors["f_nn"]
         self._opacity = optimizable_tensors["opacity"]
         self._scaling = optimizable_tensors["scaling"]
         self._rotation = optimizable_tensors["rotation"]
@@ -421,7 +358,7 @@ class DeepGaussianModel(GaussianModel):
         new_xyz = torch.bmm(rots, samples.unsqueeze(-1)).squeeze(-1) + self.get_xyz[selected_pts_mask].repeat(N, 1)
         new_scaling = self.scaling_inverse_activation(self.get_scaling[selected_pts_mask].repeat(N,1) / (0.8*N))
         new_rotation = self._rotation[selected_pts_mask].repeat(N,1)
-        new_features = self.latent_features[selected_pts_mask].repeat(N,1)
+        new_features = self._features[selected_pts_mask].repeat(N,1)
         new_opacity = self._opacity[selected_pts_mask].repeat(N,1)
 
         self.densification_postfix(new_xyz, new_features, new_opacity, new_scaling, new_rotation)
@@ -436,29 +373,9 @@ class DeepGaussianModel(GaussianModel):
                                               torch.max(self.get_scaling, dim=1).values <= self.percent_dense*scene_extent)
         
         new_xyz = self._xyz[selected_pts_mask]
-        new_features = self.latent_features[selected_pts_mask]
+        new_features = self._features[selected_pts_mask]
         new_opacities = self._opacity[selected_pts_mask]
         new_scaling = self._scaling[selected_pts_mask]
         new_rotation = self._rotation[selected_pts_mask]
 
         self.densification_postfix(new_xyz, new_features, new_opacities, new_scaling, new_rotation)
-
-    def densify_and_prune(self, max_grad, min_opacity, extent, max_screen_size):
-        grads = self.xyz_gradient_accum / self.denom
-        grads[grads.isnan()] = 0.0
-
-        self.densify_and_clone(grads, max_grad, extent)
-        self.densify_and_split(grads, max_grad, extent)
-
-        prune_mask = (self.get_opacity < min_opacity).squeeze()
-        if max_screen_size:
-            big_points_vs = self.max_radii2D > max_screen_size
-            big_points_ws = self.get_scaling.max(dim=1).values > 0.1 * extent
-            prune_mask = torch.logical_or(torch.logical_or(prune_mask, big_points_vs), big_points_ws)
-        self.prune_points(prune_mask)
-
-        torch.cuda.empty_cache()
-
-    def add_densification_stats(self, viewspace_point_tensor, update_filter):
-        self.xyz_gradient_accum[update_filter] += torch.norm(viewspace_point_tensor.grad[update_filter,:2], dim=-1, keepdim=True)
-        self.denom[update_filter] += 1

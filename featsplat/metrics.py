@@ -6,7 +6,6 @@
 # This software is free for non-commercial, research and evaluation use 
 # under the terms of the LICENSE.md file.
 #
-# For inquiries contact  george.drettakis@inria.fr
 #
 
 from pathlib import Path
@@ -15,7 +14,7 @@ from PIL import Image
 import torch
 import torchvision.transforms.functional as tf
 from utils.loss_utils import ssim
-from modules.lpipsPyTorch import lpips
+from submodules.lpipsPyTorch import lpips
 import json
 from tqdm import tqdm
 from utils.image_utils import psnr

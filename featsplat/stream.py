@@ -6,29 +6,20 @@
 # This software is free for non-commercial, research and evaluation use 
 # under the terms of the LICENSE.md file.
 #
-# For inquiries contact  george.drettakis@inria.fr
 #
 
 import os
 import torch
 from random import randint
-from deep_gaussian_renderer import render, network_gui
+from feat_gaussian_renderer import render, network_gui
 import sys
 from scene import Scene
-from modules.gaussian_splatting.utils.general_utils import safe_state
-import uuid
-from tqdm import tqdm
+from utils.general_utils import safe_state
 from argparse import ArgumentParser, Namespace
 from arguments import PipelineParams, OptimizationParams
-from deep_gaussian_model import DeepGaussianModel
+from scene.feat_gaussian_model import FeatGaussianModel
 from arguments import ModelParams
 from utils.seg_utils import mapClassesToRGB, loadSemanticClasses
-from keyboard import wait
-try:
-    from torch.utils.tensorboard import SummaryWriter
-    TENSORBOARD_FOUND = True
-except ImportError:
-    TENSORBOARD_FOUND = False
 
 import matplotlib.pyplot as plt
 # Function to plot the image
@@ -52,11 +43,8 @@ def plot_seg_image(seg_image, data_mapping, fig = 0):
     plt.pause(0.01)
 
 def streaming(dataset, opt, pipe, checkpoint):
-    gaussians = DeepGaussianModel(dataset.sh_degree, dataset.n_latents, dataset.n_classes, dataset.pixel_embedding, dataset.pos_embedding,dataset.rot_embedding)
+    gaussians = FeatGaussianModel(dataset.sh_degree, dataset.n_latents, dataset.n_classes, dataset.pixel_embedding, dataset.pos_embedding,dataset.rot_embedding)
     gaussians.training_setup(opt)
-    if checkpoint and False:
-        (model_params, first_iter) = torch.load(checkpoint)
-        gaussians.restore(model_params, opt)
     scene = Scene(dataset, gaussians, load_iteration=30000)
 
     bg_color = [0 for _ in range(gaussians.n_latents)] # Let's start with black background, ideally, background light could also be learnt as a latent vector
@@ -87,7 +75,7 @@ def streaming(dataset, opt, pipe, checkpoint):
                     network_gui.conn = None
 
 def streaming_gt(dataset, opt, pipe, checkpoint):
-    gaussians = DeepGaussianModel(dataset.sh_degree, dataset.n_latents, dataset.n_classes, dataset.pixel_embedding, dataset.pos_embedding,dataset.rot_embedding)
+    gaussians = FeatGaussianModel(dataset.sh_degree, dataset.n_latents, dataset.n_classes, dataset.pixel_embedding, dataset.pos_embedding,dataset.rot_embedding)
     gaussians.training_setup(opt)
     if checkpoint:
         (model_params, first_iter) = torch.load(checkpoint)
