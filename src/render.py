@@ -47,7 +47,7 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
                 sem_gt, _ = mapClassesToRGB(view.original_semantic.cuda().squeeze(0), data_mapping)
                 
         if save:
-            gt = view.original_image[0:3, :, :]
+            gt = view.original_image[0:3, :, :]/255.0
             torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(idx) + ".png"))
             torchvision.utils.save_image(gt, os.path.join(gts_path, '{0:05d}'.format(idx) + ".png"))
             if gaussians.n_classes>0:
