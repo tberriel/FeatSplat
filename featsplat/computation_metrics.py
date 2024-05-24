@@ -29,7 +29,7 @@ def render_set(repetitions, views, gaussians, pipeline, background, gaussian_spl
 
     return fps/(repetitions-1)
 
-def compute_fps(dataset : ModelParams, pipeline : PipelineParams, gaussian_splatting : bool, repetitions : int = 1, data_set: str ="train"):
+def compute_fps(dataset : ModelParams, pipeline : PipelineParams, gaussian_splatting : bool, repetitions : int = 1):
     with torch.no_grad():
         if gaussian_splatting:
             assert dataset.n_classes == 0, "Gaussian Splatting does not predict semantics. Set n_classes to 0."
@@ -69,7 +69,7 @@ def computation_metrics(common_args, fps_repetitions=2):
     # Initialize system state (RNG)
     safe_state(True)
 
-    fps = compute_fps(model.extract(args), pipeline.extract(args), args.gaussian_splatting, repetitions=fps_repetitions, data_set="train")
+    fps = compute_fps(model.extract(args), pipeline.extract(args), args.gaussian_splatting, repetitions=fps_repetitions)
 
     size = compute_size(args.model_path)
     n_gaussians = compute_n_gaussians(args.model_path)

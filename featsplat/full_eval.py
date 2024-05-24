@@ -13,7 +13,7 @@ from argparse import ArgumentParser
 from computation_metrics import computation_metrics
 
 # total of 380 scenes: 24 scenes for segmentation experiment ; 100 scenes for NVS benchmark; 254 scenes rest
-scannetpp_scenes =['0a5c013435', 'f07340dfea',  '7bc286c1b6', 'd2f44bf242',  '85251de7d1', '0e75f3c4d9', '98fe276aa8', '7e7cd69a59', 'f3685d06a9', '21d970d8de', '8b5caf3398', 'ada5304e41', '4c5c60fa76', 'ebc200e928', 'a5114ca13d', '5942004064', '1ada7a0617','f6659a3107', '1a130d092a', '80ffca8a48',   '08bbbdcc3d'],
+scannetpp_scenes =['0a5c013435', 'f07340dfea',  '7bc286c1b6', 'd2f44bf242',  '85251de7d1', '0e75f3c4d9', '98fe276aa8', '7e7cd69a59', 'f3685d06a9', '21d970d8de', '8b5caf3398', 'ada5304e41', '4c5c60fa76', 'ebc200e928', 'a5114ca13d', '5942004064', '1ada7a0617','f6659a3107', '1a130d092a', '80ffca8a48',   '08bbbdcc3d']
 scannetpp_nvs_scenes = os.listdir("/home/tberriel/Workspaces/splatting_ws/deep_splatting/data/input/Datasets/ScanNetpp_nvs")
 scannetpp_rest_scenes = []
 
@@ -135,16 +135,11 @@ if not args.skip_rendering:
         elif scene in args.deep_blending_scenes:
             dataset = "db"
         os.system("python featsplat/render.py --iteration 7000 -s " + source + " -m " + os.path.join(args.output_path,dataset,scene) + common_args)
-        os.system("python featsplat/render.py --iteration 21000 -s " + source + " -m " + os.path.join(args.output_path,dataset,scene) + common_args)
         os.system("python featsplat/render.py --iteration 30000 -s " + source + " -m " + os.path.join(args.output_path,dataset,scene) + common_args)
     for scene in args.scannetpp_scenes:
         for i in range(args.iterations):
             os.system("python featsplat/render.py --iteration 7000 -s " + args.scannetpp + "/" + scene + " -m " + os.path.join(args.output_path,args.scannetpp_set,scene+name_suffix+f"_{i}") + " -r 1 "+ common_args)
-            os.system("python featsplat/render.py --iteration 21000 -s " + args.scannetpp + "/" + scene + " -m " + os.path.join(args.output_path,args.scannetpp_set,scene+name_suffix+f"_{i}") + " -r 1 "+ common_args)
             os.system("python featsplat/render.py --iteration 30000 -s " + args.scannetpp + "/" + scene + " -m " + os.path.join(args.output_path,args.scannetpp_set,scene+name_suffix+f"_{i}") + " -r 1 "+ common_args)
-            os.system("python featsplat/render.py --iteration 35000 -s " + args.scannetpp + "/" + scene + " -m " + os.path.join(args.output_path,args.scannetpp_set,scene+name_suffix+f"_{i}") + " -r 1 "+ common_args)
-            os.system("python featsplat/render.py --iteration 42000 -s " + args.scannetpp + "/" + scene + " -m " + os.path.join(args.output_path,args.scannetpp_set,scene+name_suffix+f"_{i}") + " -r 1 "+ common_args)
-            os.system("python featsplat/render.py --iteration 44000 -s " + args.scannetpp + "/" + scene + " -m " + os.path.join(args.output_path,args.scannetpp_set,scene+name_suffix+f"_{i}") + " -r 1 "+ common_args)
 
 
 if not args.skip_metrics:
