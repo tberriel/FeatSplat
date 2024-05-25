@@ -13,10 +13,6 @@ from argparse import ArgumentParser
 from computation_metrics import computation_metrics
 
 # total of 380 scenes: 24 scenes for segmentation experiment ; 100 scenes for NVS benchmark; 254 scenes rest
-scannetpp_scenes =['0a5c013435', 'f07340dfea',  '7bc286c1b6', 'd2f44bf242',  '85251de7d1', '0e75f3c4d9', '98fe276aa8', '7e7cd69a59', 'f3685d06a9', '21d970d8de', '8b5caf3398', 'ada5304e41', '4c5c60fa76', 'ebc200e928', 'a5114ca13d', '5942004064', '1ada7a0617','f6659a3107', '1a130d092a', '80ffca8a48',   '08bbbdcc3d']
-scannetpp_nvs_scenes = os.listdir("/home/tberriel/Workspaces/splatting_ws/deep_splatting/data/input/Datasets/ScanNetpp_nvs")
-scannetpp_rest_scenes = []
-
 
 parser = ArgumentParser(description="Full evaluation script parameters")
 parser.add_argument("--skip_training", action="store_true")
@@ -48,8 +44,7 @@ parser.add_argument('--mipnerf360_outdoor_scenes', nargs="+", type=str, default=
 parser.add_argument('--mipnerf360_indoor_scenes', nargs="+", type=str, default=["room", "counter", "kitchen", "bonsai"] if args.mipnerf360 is not None else [] )
 parser.add_argument('--tanks_and_temples_scenes', nargs="+", type=str, default=["truck", "train"] if args.tanksandtemples is not None else [] )
 parser.add_argument('--deep_blending_scenes', nargs="+", type=str, default=["drjohnson", "playroom"] if args.deepblending is not None else [] )
-parser.add_argument('--scannetpp_scenes', nargs="+", type=str, default=[])
-parser.add_argument("--scannetpp_set", default="scannet_sem")
+parser.add_argument('--scannetpp_scenes', nargs="+", type=str, default=['0a5c013435', 'f07340dfea',  '7bc286c1b6', 'd2f44bf242',  '85251de7d1', '0e75f3c4d9', '98fe276aa8', '7e7cd69a59', 'f3685d06a9', '21d970d8de', '8b5caf3398', 'ada5304e41', '4c5c60fa76', 'ebc200e928', 'a5114ca13d', '5942004064', '1ada7a0617','f6659a3107', '1a130d092a', '80ffca8a48',   '08bbbdcc3d'])
 
 args = parser.parse_args()
 
@@ -59,29 +54,23 @@ if args.n_classes > 0:
 else:
     name_suffix = ""
 
-if len(args.scannetpp_scenes) == 0 and args.scannetpp:
-    if args.scannetpp_set == "scannet_sem":
-        args.scannetpp_scenes = scannetpp_scenes
-    elif args.scannetpp_set == "scannet_nvs":
-        args.scannetpp_scenes = scannetpp_nvs_scenes
-    elif args.scannetpp_set == "scannet_rest":
-        args.scannetpp_scenes = scannetpp_rest_scenes
-    else:
-        assert False, "Either pass a set of ScanNet++ scenes, or select a set from ['scannet_sem', 'scannet_nvs', 'scannet_rest']"
-
 if not args.skip_training:
-    common_args = f" --quiet --eval --iterations {args.train_iterations} --n_classes {args.n_classes} --sh_degree {args.sh_degree} --data_device {args.data_device} --h_layers {args.h_layers} --n_neurons {args.n_neurons}"
+    common_args = f" --quiet --eval --iterations {args.train_iterations} --sh_degree {args.sh_degree} --data_device {args.data_device}"
     
     if not args.test_midway:
         common_args += " --test_iterations -1 "
-    if args.pembedding:
-        common_args += " --pixel_embedding "
-    if args.cam_pos:
-        common_args += " --pos_embedding"
-    if args.cam_rot:
-        common_args += " --rot_embedding"
+
     if args.gs:
         common_args += " --gaussian_splatting "
+    else:
+        common_args += " --n_classes {args.n_classes} --h_layers {args.h_layers} --n_neurons {args.n_neurons}"
+        if args.pembedding:
+            common_args += " --pixel_embedding "
+        if args.cam_pos:
+            common_args += " --pos_embedding"
+        if args.cam_rot:
+            common_args += " --rot_embedding"
+
     for scene in args.mipnerf360_outdoor_scenes:
         source = args.mipnerf360+ "/" + scene
         os.system("python featsplat/train.py -s " + source + " -i images_4 -m " + os.path.join(args.output_path,"360_v2",scene)+ common_args)
@@ -97,7 +86,7 @@ if not args.skip_training:
     for scene in args.scannetpp_scenes:
         for i in range(args.iterations):
             source = args.scannetpp + "/" + scene
-            os.system("python featsplat/train.py -s " + source + " -r 1 -m " +  os.path.join(args.output_path,args.scannetpp_set,scene+name_suffix+f"_{i}") + common_args)
+            os.system("python featsplat/train.py -s " + source + " -r 1 -m " +  os.path.join(args.output_path,"scannetpp",scene+name_suffix+f"_{i}") + common_args + " --images_extension .JPG ")
 
 almost_all_scenes = []
 almost_all_scenes.extend(args.mipnerf360_outdoor_scenes)
@@ -118,15 +107,19 @@ if not args.skip_rendering:
     for scene in args.deep_blending_scenes:
         all_sources.append(args.deepblending + "/" + scene)
 
-    common_args = f" --quiet --eval --skip_train --n_classes {args.n_classes} --sh_degree {args.sh_degree} --data_device {args.data_device} --h_layers {args.h_layers} --n_neurons {args.n_neurons}"
-    if args.pembedding:
-        common_args += " --pixel_embedding "
-    if args.cam_pos:
-        common_args += " --pos_embedding"
-    if args.cam_rot:
-        common_args += " --rot_embedding"
+    common_args = f" --quiet --eval --skip_train --sh_degree {args.sh_degree} --data_device {args.data_device}"
+
     if args.gs:
         common_args += " --gaussian_splatting "
+    else:
+        common_args += " --n_classes {args.n_classes} --h_layers {args.h_layers} --n_neurons {args.n_neurons}"
+        if args.pembedding:
+            common_args += " --pixel_embedding "
+        if args.cam_pos:
+            common_args += " --pos_embedding"
+        if args.cam_rot:
+            common_args += " --rot_embedding"
+
     for scene, source in zip(almost_all_scenes, all_sources):
         if scene in  args.mipnerf360_indoor_scenes or scene in args.mipnerf360_outdoor_scenes:
             dataset = "360_v2"
@@ -138,8 +131,8 @@ if not args.skip_rendering:
         os.system("python featsplat/render.py --iteration 30000 -s " + source + " -m " + os.path.join(args.output_path,dataset,scene) + common_args)
     for scene in args.scannetpp_scenes:
         for i in range(args.iterations):
-            os.system("python featsplat/render.py --iteration 7000 -s " + args.scannetpp + "/" + scene + " -m " + os.path.join(args.output_path,args.scannetpp_set,scene+name_suffix+f"_{i}") + " -r 1 "+ common_args)
-            os.system("python featsplat/render.py --iteration 30000 -s " + args.scannetpp + "/" + scene + " -m " + os.path.join(args.output_path,args.scannetpp_set,scene+name_suffix+f"_{i}") + " -r 1 "+ common_args)
+            os.system("python featsplat/render.py --iteration 7000 -s " + args.scannetpp + "/" + scene + " -m " + os.path.join(args.output_path,"scannetpp",scene+name_suffix+f"_{i}") + " -r 1 "+ common_args)
+            os.system("python featsplat/render.py --iteration 30000 -s " + args.scannetpp + "/" + scene + " -m " + os.path.join(args.output_path,"scannetpp",scene+name_suffix+f"_{i}") + " -r 1 "+ common_args + " --images_extension .JPG ")
 
 
 if not args.skip_metrics:
@@ -154,7 +147,7 @@ if not args.skip_metrics:
         scenes_string += "\"" + os.path.join(args.output_path,dataset,scene) + "\" "
     for scene in args.scannetpp_scenes:
         for i in range(args.iterations):
-            scenes_string += "\"" + os.path.join(args.output_path,args.scannetpp_set,scene+name_suffix+f"_{i}") + "\" "
+            scenes_string += "\"" + os.path.join(args.output_path,"scannetpp",scene+name_suffix+f"_{i}") + "\" "
 
     os.system("python featsplat/metrics.py -m " + scenes_string)
 
@@ -194,7 +187,7 @@ if not args.skip_comp_metrics:
 
     for scene in args.scannetpp_scenes:
         try:
-            computation_metrics(common_args + ["-s",args.scannetpp + "/" + scene, "-m",os.path.join(args.output_path,args.scannetpp_set,scene+name_suffix+f"_{i}")])
+            computation_metrics(common_args + ["-s",args.scannetpp + "/" + scene, "-m",os.path.join(args.output_path,"scannetpp",scene+name_suffix+f"_{i}"), "--images_extension", ".JPG"])
 
         except:
             failed_scenes.append(scene)

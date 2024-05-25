@@ -104,7 +104,7 @@ def avgmIoU(data_path, eval_path, n_classes):
 def computeConfMat(dataset, pipe, data_path, eval_path):
     bg_color = [0 for _ in range(dataset.n_latents)] # Let's start with black background, ideally, background light could also be learnt as a latent vector
     background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
-    gaussians = DeepGaussianModel(dataset)
+    gaussians = FeatGaussianModel(dataset)
     scene_list = os.listdir(data_path)
     scenes = []
     for scene in scene_list:
@@ -122,7 +122,6 @@ def computeConfMat(dataset, pipe, data_path, eval_path):
 
 def confMatPerScene( scene : Scene, renderFunc, renderArgs, n_classes : int, model_path : str):
     mIoU = MulticlassJaccardIndex(n_classes, average=None).cuda()
-    mIoU_w = MulticlassJaccardIndex(n_classes, average="weighted").cuda()
 
     # Report test and samples of evaluating set
     cameras = scene.getTestCameras()
@@ -137,23 +136,6 @@ def confMatPerScene( scene : Scene, renderFunc, renderArgs, n_classes : int, mod
 
     torch.save(mIoU.confmat,confmat_path)
 
-
-def segmentation_acc(seg, gt_seg, per_class):
-    n_classes = seg.shape[-1]
-    seg = seg.argmax(-1)
-    acc = seg == gt_seg
-    for i in range(n_classes):
-        per_class["tp"][i].append((acc[seg==i]).sum())
-        per_class["tp+fn"][i].append((gt_seg==i).sum())
-        per_class["tp+fp"][i].append((seg==i).sum())
-        #per_class[i]["prec"].append(per_class[i]["tp"]/per_class[i]["tp+fn"])
-""" Code stored in case I need to compute per class metrics
-support = []
-for i in range(n_classes):
-    support.append(sum(per_class_metrics["tp+fn"][i]))
-    recall =  sum(per_class_metrics["tp"][i])/support[i] # We want high recall for classes with small support
-    prec = sum(per_class_metrics["tp"][i])/sum(per_class_metrics["tp+fp"][i]) # We want high preccision for classes with high support
-    f1 = 2*prec*recall/(prec+recall)"""
 
 if __name__ == "__main__":
     os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
