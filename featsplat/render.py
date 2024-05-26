@@ -57,25 +57,26 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
                 torchvision.utils.save_image(torch.from_numpy(sem_gt).permute((2,0,1)), os.path.join(gts_sem_path, '{0:05d}'.format(idx) + ".png"))
 
 
-def render_sets(dataset : ModelParams, iteration : int, pipeline : PipelineParams, skip_train : bool, skip_test : bool, gaussian_splatting : bool, save : bool = True):
+def render_sets(dataset : ModelParams,pipeline : PipelineParams, args : ArgumentParser):
+
     with torch.no_grad():
-        if gaussian_splatting:
+        if args.gaussian_splatting:
             assert dataset.n_classes == 0, "Gaussian Splatting does not predict semantics. Set n_classes to 0."
             gaussians = GaussianModel(dataset.sh_degree)
         else:
             gaussians = FeatGaussianModel(dataset)
-        scene = Scene(dataset, gaussians, load_iteration=iteration, shuffle=False)
-        if gaussian_splatting:
+        scene = Scene(dataset, gaussians, load_iteration=args.iteration, shuffle=False)
+        if args.gaussian_splatting:
             bg_color = [1, 1, 1] if dataset.white_background else [0, 0, 0]
         else:
-            bg_color = [0 for _ in range(gaussians.n_latents)] #if dataset.white_background else [1 for _ in range(gaussians.n_latents)]# Let's start with black background, ideally, background light could also be learnt as a latent vector
+            bg_color = [0 for _ in range(gaussians.n_latents)] 
         background = torch.tensor(bg_color, dtype=torch.float32, device="cuda")
 
-        if not skip_train:
-             render_set(dataset.model_path, "train", scene.loaded_iter, scene.getTrainCameras(), gaussians, pipeline, background, save, gaussian_splatting)
+        if not args.skip_train:
+             render_set(dataset.model_path, "train", scene.loaded_iter, scene.getTrainCameras(), gaussians, pipeline, background, args.save, args.gaussian_splatting)
 
-        if not skip_test:
-             render_set(dataset.model_path, "test", scene.loaded_iter, scene.getTestCameras(), gaussians, pipeline, background, save, gaussian_splatting)
+        if not args.skip_test:
+             render_set(dataset.model_path, "test", scene.loaded_iter, scene.getTestCameras(), gaussians, pipeline, background, args.save, args.gaussian_splatting)
 
 if __name__ == "__main__":
     # Set up command line argument parser
@@ -94,4 +95,4 @@ if __name__ == "__main__":
     # Initialize system state (RNG)
     safe_state(args.quiet)
 
-    render_sets(model.extract(args), args.iteration, pipeline.extract(args), args.skip_train, args.skip_test, args.gaussian_splatting, args.save)
+    render_sets(model.extract(args), pipeline.extract(args), args)#args.iteration,  args.skip_train, args.skip_test, args.gaussian_splatting, args.save)

@@ -21,15 +21,14 @@ parser.add_argument("--skip_metrics", action="store_true")
 parser.add_argument("--skip_comp_metrics", action="store_true")
 parser.add_argument("--test_midway", action="store_true")
 parser.add_argument("--output_path", default="./data/working/eval")
-parser.add_argument("--n_classes", default=0, type=int)
 parser.add_argument("--train_iterations", default=30_000, type=int)
 parser.add_argument("--h_layers", default=0, type=int)
 parser.add_argument("--n_neurons", default=64, type=int)
+parser.add_argument("--n_classes", default=0, type=int)
 parser.add_argument("--lambda_sem", default=0.001, type=float)
 parser.add_argument("--pembedding", action="store_true")
 parser.add_argument("--cam_pos", action="store_true")
 parser.add_argument("--cam_rot", action="store_true")
-parser.add_argument("--iterations", default=4, type=int)
 parser.add_argument("--gs", action="store_true")
 parser.add_argument("--data_device", default="cuda")
 
@@ -47,13 +46,8 @@ parser.add_argument('--deep_blending_scenes', nargs="+", type=str, default=["drj
 parser.add_argument('--scannetpp_scenes', nargs="+", type=str, default=['0a5c013435', 'f07340dfea',  '7bc286c1b6', 'd2f44bf242',  '85251de7d1', '0e75f3c4d9', '98fe276aa8', '7e7cd69a59', 'f3685d06a9', '21d970d8de', '8b5caf3398', 'ada5304e41', '4c5c60fa76', 'ebc200e928', 'a5114ca13d', '5942004064', '1ada7a0617','f6659a3107', '1a130d092a', '80ffca8a48',   '08bbbdcc3d'])
 
 args = parser.parse_args()
-
-if args.n_classes > 0:
-    name_suffix = f"_sem{args.n_classes}_{args.lambda_sem}"
-    assert not args.gs, "Gaussian Splatting does not predict semantics. Set n_classes to 0."
-else:
-    name_suffix = ""
-
+if args.gs:
+    print("Training Gaussian splatting model. The following arguments will be ignored: --n_classes, --lambda_sem, --pos_embedding, --rot_embedding, --pixel_embedding, --h_layers, --n_neurons, ")
 if not args.skip_training:
     common_args = f" --quiet --eval --iterations {args.train_iterations} --sh_degree {args.sh_degree} --data_device {args.data_device}"
     
@@ -63,7 +57,7 @@ if not args.skip_training:
     if args.gs:
         common_args += " --gaussian_splatting "
     else:
-        common_args += " --n_classes {args.n_classes} --h_layers {args.h_layers} --n_neurons {args.n_neurons}"
+        common_args += f" --n_classes {args.n_classes} --lambda_sem {args.lambda_sem} --h_layers {args.h_layers} --n_neurons {args.n_neurons}"
         if args.pembedding:
             common_args += " --pixel_embedding "
         if args.cam_pos:
@@ -84,9 +78,8 @@ if not args.skip_training:
         source = args.deepblending + "/" + scene
         os.system("python featsplat/train.py -s " + source + " -m " + os.path.join(args.output_path,"db",scene)+ common_args)
     for scene in args.scannetpp_scenes:
-        for i in range(args.iterations):
-            source = args.scannetpp + "/" + scene
-            os.system("python featsplat/train.py -s " + source + " -r 1 -m " +  os.path.join(args.output_path,"scannetpp",scene+name_suffix+f"_{i}") + common_args + " --images_extension .JPG ")
+        source = args.scannetpp + "/" + scene
+        os.system("python featsplat/train.py -s " + source + " -r 1 -m " +  os.path.join(args.output_path,"scannetpp",scene) + common_args + " --images_extension .JPG ")
 
 almost_all_scenes = []
 almost_all_scenes.extend(args.mipnerf360_outdoor_scenes)
@@ -112,7 +105,7 @@ if not args.skip_rendering:
     if args.gs:
         common_args += " --gaussian_splatting "
     else:
-        common_args += " --n_classes {args.n_classes} --h_layers {args.h_layers} --n_neurons {args.n_neurons}"
+        common_args += f" --n_classes {args.n_classes} --h_layers {args.h_layers} --n_neurons {args.n_neurons}"
         if args.pembedding:
             common_args += " --pixel_embedding "
         if args.cam_pos:
@@ -129,10 +122,10 @@ if not args.skip_rendering:
             dataset = "db"
         os.system("python featsplat/render.py --iteration 7000 -s " + source + " -m " + os.path.join(args.output_path,dataset,scene) + common_args)
         os.system("python featsplat/render.py --iteration 30000 -s " + source + " -m " + os.path.join(args.output_path,dataset,scene) + common_args)
+
     for scene in args.scannetpp_scenes:
-        for i in range(args.iterations):
-            os.system("python featsplat/render.py --iteration 7000 -s " + args.scannetpp + "/" + scene + " -m " + os.path.join(args.output_path,"scannetpp",scene+name_suffix+f"_{i}") + " -r 1 "+ common_args)
-            os.system("python featsplat/render.py --iteration 30000 -s " + args.scannetpp + "/" + scene + " -m " + os.path.join(args.output_path,"scannetpp",scene+name_suffix+f"_{i}") + " -r 1 "+ common_args + " --images_extension .JPG ")
+        os.system("python featsplat/render.py --iteration 7000 -s " + args.scannetpp + "/" + scene + " -m " + os.path.join(args.output_path,"scannetpp",scene) + " -r 1 "+ common_args)
+        os.system("python featsplat/render.py --iteration 30000 -s " + args.scannetpp + "/" + scene + " -m " + os.path.join(args.output_path,"scannetpp",scene) + " -r 1 "+ common_args + " --images_extension .JPG ")
 
 
 if not args.skip_metrics:
@@ -146,8 +139,7 @@ if not args.skip_metrics:
             dataset = "db"
         scenes_string += "\"" + os.path.join(args.output_path,dataset,scene) + "\" "
     for scene in args.scannetpp_scenes:
-        for i in range(args.iterations):
-            scenes_string += "\"" + os.path.join(args.output_path,"scannetpp",scene+name_suffix+f"_{i}") + "\" "
+        scenes_string += "\"" + os.path.join(args.output_path,"scannetpp",scene) + "\" "
 
     os.system("python featsplat/metrics.py -m " + scenes_string)
 
@@ -163,7 +155,7 @@ if not args.skip_comp_metrics:
     for scene in args.deep_blending_scenes:
         all_sources.append(args.deepblending + "/" + scene)
 
-    common_args = ["--eval","--n_classes", f"{args.n_classes}", "--sh_degree", f"{args.sh_degree}", "--data_device",f"{args.data_device}", "--h_layers", f"{args.h_layers}"]
+    common_args = ["--eval","--n_classes", str(args.n_classes), "--sh_degree", str(args.sh_degree), "--data_device",args.data_device, "--h_layers", str(args.h_layers)]
     if args.pembedding:
         common_args += ["--pixel_embedding"]
     if args.cam_pos:
@@ -187,7 +179,7 @@ if not args.skip_comp_metrics:
 
     for scene in args.scannetpp_scenes:
         try:
-            computation_metrics(common_args + ["-s",args.scannetpp + "/" + scene, "-m",os.path.join(args.output_path,"scannetpp",scene+name_suffix+f"_{i}"), "--images_extension", ".JPG"])
+            computation_metrics(common_args + ["-s",args.scannetpp + "/" + scene, "-m",os.path.join(args.output_path,"scannetpp",scene), "--images_extension", ".JPG"])
 
         except:
             failed_scenes.append(scene)
