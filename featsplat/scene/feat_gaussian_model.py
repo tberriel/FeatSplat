@@ -109,7 +109,7 @@ class FeatGaussianModel(GaussianModel):
             
         x = torch.cat([x]+embeddings, axis=-1 )
 
-        rendered_image = self.mlp(x).permute(1,0)[...,None].reshape((3,h,w))
+        rendered_image = self.mlp(x).permute(1,0)[...,None].reshape((3+self.n_classes,h,w))
 
         if self.n_classes > 0: 
             segmentation_image = rendered_image[3*(self.active_sh_degree+1)**2:]
