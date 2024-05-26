@@ -8,7 +8,8 @@
 #
 # For inquiries contact  george.drettakis@inria.fr
 #
-
+# This file includes derivatives from the original gaussian-splatting software
+# 
 import torch
 import math
 from diff_deep_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
@@ -16,7 +17,7 @@ from diff_gaussian_rasterization import GaussianRasterizer as BaseGaussianRaster
 from scene.gaussian_model import GaussianModel
 from utils.sh_utils import eval_sh
 
-def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, scaling_modifier = 1.0, override_color = None, filter_gaussians = False, features_splatting = False):
+def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, scaling_modifier = 1.0, override_color = None,features_splatting = False):
     """
     Render the scene. 
     
@@ -110,12 +111,6 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     else:
         rendered_image, segmentation_image = latent_image, None
 
-    if filter_gaussians:
-        radii_full = torch.zeros_like(visible_mask, dtype=torch.int32)
-        radii_full[visible_mask] = radii
-        radii = radii_full
-    # Those Gaussians that were frustum culled or had a radius of 0 were not visible.
-    # They will be excluded from value updates used in the splitting criteria.
     return {"render": rendered_image,
             "segmentation": segmentation_image,
             "viewspace_points": screenspace_points,

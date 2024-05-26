@@ -1,12 +1,13 @@
+# This file is under the MIT License and not bounded by Gaussian Splatting License
+#MIT License
 #
-# Copyright (C) 2023, Inria
-# GRAPHDECO research group, https://team.inria.fr/graphdeco
-# All rights reserved.
+#Copyright (c) 2024 Tomás Berriel Martins
 #
-# This software is free for non-commercial, research and evaluation use 
-# under the terms of the LICENSE.md file.
+#Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell  copies of the Software, and to permit persons to whom Christopher Johannes Wewerthe Software is furnished to do so, subject to the following conditions:
+# 
+#The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 #
-#
+#THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import os
 import torch
@@ -90,7 +91,7 @@ def avgmIoU(data_path, eval_path, n_classes):
     scene_list = tqdm(os.listdir(data_path))
     torch.set_printoptions(4)
     for scene in scene_list:
-        model_path = os.path.join(eval_path, scene+"_sem64_0.001_0")
+        model_path = os.path.join(eval_path, scene+"_sem64")
         if os.path.isdir(model_path):
             confMat_tmp = torch.load(os.path.join(model_path, "confMat.pt"))
             print("Scene {} mIoU w: {}".format(scene,jaccard_index_reduce(confMat_tmp, "weighted").item()))
@@ -108,13 +109,13 @@ def computeConfMat(dataset, pipe, data_path, eval_path):
     scene_list = os.listdir(data_path)
     scenes = []
     for scene in scene_list:
-        scene_path = os.path.join(eval_path, scene+"_sem64_0.001_0")
+        scene_path = os.path.join(eval_path, scene+"_sem64")
         if os.path.isdir(scene_path):# and not os.path.exists(os.path.join(scene_path,"confMat.pt")):
             scenes.append(scene)
     scene_list = tqdm(scenes)
     for scene in scene_list:
         dataset.source_path = os.path.join(data_path, scene)
-        dataset.model_path = os.path.join(eval_path, scene+"_sem64_0.001_0")
+        dataset.model_path = os.path.join(eval_path, scene+"_sem64")
         scene = Scene(dataset, gaussians, load_iteration=30000, load_train=False)  
 
         confMatPerScene(scene, render, (pipe, background), dataset.n_classes, dataset.model_path)

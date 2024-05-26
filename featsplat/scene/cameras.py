@@ -8,7 +8,8 @@
 #
 # For inquiries contact  george.drettakis@inria.fr
 #
-
+# This file includes derivative from the original gaussian-splatting software
+# 
 import torch
 from torch import nn
 import numpy as np

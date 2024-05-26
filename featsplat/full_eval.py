@@ -7,12 +7,12 @@
 # under the terms of the LICENSE.md file.
 #
 #
+# This file includes derivative from the original gaussian-splatting software
+# 
 
 import os
 from argparse import ArgumentParser
 from computation_metrics import computation_metrics
-
-# total of 380 scenes: 24 scenes for segmentation experiment ; 100 scenes for NVS benchmark; 254 scenes rest
 
 parser = ArgumentParser(description="Full evaluation script parameters")
 parser.add_argument("--skip_training", action="store_true")

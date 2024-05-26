@@ -8,7 +8,8 @@
 #
 # For inquiries contact  george.drettakis@inria.fr
 #
-
+# This file includes derivative from the original gaussian-splatting software
+# 
 from argparse import ArgumentParser, Namespace
 import sys
 import os
