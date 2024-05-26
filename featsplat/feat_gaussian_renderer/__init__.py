@@ -12,7 +12,7 @@
 # 
 import torch
 import math
-from diff_deep_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
+from diff_feat_gaussian_rasterization import GaussianRasterizationSettings, GaussianRasterizer
 from diff_gaussian_rasterization import GaussianRasterizer as BaseGaussianRasterizer
 from scene.gaussian_model import GaussianModel
 from utils.sh_utils import eval_sh
@@ -86,15 +86,6 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     else:
         colors_precomp = override_color
 
-    if filter_gaussians:
-        mean3D_local = torch.einsum("mn,dn->dm",viewpoint_camera.world_view_transform, torch.hstack((means3D,torch.ones((means3D.shape[0],1), device = "cuda"))))
-        visible_mask = mean3D_local[:,2]>0 # if Z coordinate is negative axis it is not going to be seen by the camera 
-        means3D = means3D[visible_mask]
-        means2D = means2D[visible_mask]
-        colors_precomp = colors_precomp[visible_mask]
-        opacity = opacity[visible_mask]
-        scales = scales[visible_mask]
-        rotations = rotations[visible_mask]
 
     # Rasterize visible Gaussians to image, obtain their radii (on screen). 
     latent_image, radii = rasterizer(
