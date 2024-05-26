@@ -5,5 +5,4 @@
 *.ipynb_checkpoints
 data
 SIBR_viewers
-featsplat/diff-feat-gaussian-rasterization/*
-featsplat/diff_feat_gaussian_rasterization.egg-info/
+featsplat/submodules/*
