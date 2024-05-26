@@ -133,7 +133,7 @@ def organize_like_gs(folders, destination, base_path, segmentation):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create folders in a destination directory")
-    parser.add_argument("--scenes_list", type = str, default="/home/tberriel/Workspaces/splatting_ws/featsplat/scannetpp_preprocess/scannetpp_21_scenes.txt")
+    parser.add_argument("--scenes_list", type = str, default="/home/tberriel/Workspaces/splatting_ws/featsplat/scripts/scannetpp_21_scenes.txt")
     parser.add_argument("--scannetpp_toolbox_path", "-stp", default="/media/tberriel/My_Book_2/ScanNetpp/scannetpp", help="Origin directory")
     parser.add_argument("--scannetpp_data_path", "-sdp", default="/media/tberriel/My_Book_2/ScanNetpp/data", help="Origin directory")
     parser.add_argument("--destination", "-d", default="scannetpp_nerfstudio", help="Destination directory")
