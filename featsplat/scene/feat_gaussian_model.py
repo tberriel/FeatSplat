@@ -91,6 +91,9 @@ class FeatGaussianModel(GaussianModel):
         _, h, w = projected_features.shape
         x = projected_features.flatten(1,2).permute(1,0)
         embeddings = []
+        if self.pos_embedding:
+            camera_pos = camera_pos[None,...].repeat((h*w, 1))
+            embeddings.append(camera_pos)
         if self.pixel_embedding:
             if self.p_embedding is None or (self.p_embedding.shape[1] != h or self.p_embedding.shape[2] != w):
                 umap = torch.linspace(-1, 1, w, device = projected_features.device)
@@ -100,9 +103,6 @@ class FeatGaussianModel(GaussianModel):
                 self.p_embedding =  points_2d.flatten(0,1)
             embeddings.append(self.p_embedding)
 
-        if self.pos_embedding:
-            camera_pos = camera_pos[None,...].repeat((h*w, 1))
-            embeddings.append(camera_pos)
         if self.rot_embedding:
             embeddings.append(camera_rot)
             camera_rot = camera_rot[None,...].repeat((h*w, 1))
