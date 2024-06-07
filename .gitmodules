@@ -7,3 +7,6 @@
 [submodule "featsplat/submodules/diff-feat-gaussian-rasterization"]
 	path = featsplat/submodules/diff-feat-gaussian-rasterization
 	url = git@github.com:tberriel/diff-feat-gaussian-rasterization.git
+[submodule "SIBR_viewers"]
+	path = SIBR_viewers
+	url = https://gitlab.inria.fr/sibr/sibr_core.git
