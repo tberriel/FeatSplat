@@ -38,9 +38,12 @@ The code and repository is based on the official [3D Gaussian Splatting](https:/
 The codebase has 4 main components:
 - A PyTorch-based optimizer to produce a 3D Gaussian model from SfM inputs
 - A network viewer that allows to connect to and visualize the optimization process
-- An OpenGL-based real-time viewer to render trained models in real-time.
 
 The repository has been tested on Ubuntu Linux 20.04. 
+
+### Data
+
+The MipNeRF360 scenes are hosted by the paper authors [here](https://jonbarron.info/mipnerf360/). You can find INRIA SfM data sets for Tanks&Temples and Deep Blending [here](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/datasets/input/tandt_db.zip). If you do not provide an output model directory (```-m```), trained models are written to folders with randomized unique names inside the ```output``` directory. At this point, the trained models may be viewed with the real-time viewer (see further below).
 
 ## Optimizer
 
@@ -50,7 +53,6 @@ The optimizer uses PyTorch and CUDA extensions in a Python environment to produc
 
 - CUDA-ready GPU with Compute Capability 7.0+
 - 24 GB VRAM (to train to paper evaluation quality)
-- Please see FAQ for smaller VRAM configurations
 
 ### Software Requirements
 - Conda (recommended for easy setup)
@@ -67,21 +69,65 @@ conda activate featsplat
 ```
 Please note that this process assumes that you have CUDA SDK **11** installed, not **12**.
 
-### Data
-
-The MipNeRF360 scenes are hosted by the paper authors [here](https://jonbarron.info/mipnerf360/). You can find INRIA SfM data sets for Tanks&Temples and Deep Blending [here](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/datasets/input/tandt_db.zip). If you do not provide an output model directory (```-m```), trained models are written to folders with randomized unique names inside the ```output``` directory. At this point, the trained models may be viewed with the real-time viewer (see further below).
 
 ### Running
 
-To run the optimizer, simply use
+To run the optimizer with FeatSplat32 configuration, simply use
 
 ```shell
-python featsplat/train.py -s <path to COLMAP or NeRF Synthetic dataset>
+python featsplat/train.py -s <path to COLMAP or NeRF Synthetic dataset> --pixel_embedding --pos_embedding
+```
+ and for Semantic FeatSplat32
+
+```shell
+python featsplat/train.py -s <path to COLMAP or NeRF Synthetic dataset> --pixel_embedding --pos_embedding --n_classes 64 --semantic_classes_path <path to 64_most_common_classes>
 ```
 
 <details>
 <summary><span style="font-weight: bold;">Command Line Arguments for train.py</span></summary>
 
+  **Feature Splatting flages**
+  #### --n_latents
+  Size of Gaussians' feature vectors. Default = 32 . This value, should be equal to the value of N_CHANNELS in featsplat/submodules/diff-feat-gaussian-rasterization/ config.h . 
+  #### --h_layers
+  Number of hidden layer of the output MLP. Default = 0
+  #### --n_neurons
+  Number of neurons on the output MLP neurons. Default = 64.
+  #### --pixel_embedding
+  Add this flag to concatenate the pixel embedding to the feature vectors before the MLP.
+  #### --pos_embedding
+  Add this flag to concatenate the camera position embedding to the feature vectors before the MLP.
+  #### --rot_embedding
+  Add this flag to concatenate the camera rotation encoded as Euler angles to the feature vectors before the MLP.
+  #### --images_extension = ".png"
+  Extension of the RGB images filed. For ScanNet++ dataset use ".JPG", (i.e. --image_extension .JPG ). Default = ".png" 
+  #### --feature_lr_init
+  Initial learning rate for Feature vectors. If --gaussian_splating is set, this will be the SHs learning rate. Default = 0.0025
+  #### --feature_lr_final 
+  Final learning rate for Feature vectors. If --gaussian_splating is set, this will be the SHs learning rate. Default = 0.00025
+  #### --feature_lr_max_steps
+  Number of steps to go from feature_lr_init to feature_lr_final. Default = 30_000
+  #### --mlp_lr_init
+  Initial learning rate for the output MLP. If --gaussian_splating is set, this will be the SHs learning rate. Default = 0.001
+  #### --mlp_lr_final
+  Final learning rate for the output MLP. If --gaussian_splating is set, this will be the SHs learning rate. Default = 0.0001
+  #### --mlp_lr_max_steps
+  Number of steps to go from mlp_lr_init to mlp_lr_final. Default = 30_000
+
+  **Semantic flags**
+  #### --n_classes
+  Number of classes to perform closed-vocabulary semantic segmentation. Default = 0.
+  #### --weighted_ce_loss
+  Add this flag to use a weighted Cross-Entropy Loss for semantic segmentation training. If --n_classes = 0, this flag is ignored. Default is a normal Cross-Entropy Loss.
+  #### --semantic_classes_path
+  Path to the file 64_most_common_classes. If --n_classes = 0, this flag is ignored.
+  #### --lambda_sem
+  Weight of the Semantic Cross-Entropy Loss. Default is 0.001. If --n_classes = 0, this flag is ignored.
+
+  #### --gaussian_splatting
+  Add this flag to train a basic 3D Gaussian Splatting model. If set the follwing flags will be ignored: n_latents, h_layers, n_neurons, pixel_embedding, pos_embedding, rot_embedding, n_classes, weighted_ce_loss, --semantic_classes_path --lambda_sem . **Do not add this flag to train a Feature Splatting model**.
+
+  **Base 3DGS Flags**
   #### --source_path / -s
   Path to the source directory containing a COLMAP or Synthetic NeRF data set.
   #### --model_path / -m 
@@ -97,9 +143,9 @@ python featsplat/train.py -s <path to COLMAP or NeRF Synthetic dataset>
   #### --white_background / -w
   Add this flag to use white background instead of black (default), e.g., for evaluation of NeRF Synthetic dataset.
   #### --sh_degree
-  Order of spherical harmonics to be used (no larger than 3). ```3``` by default.
+  Order of spherical harmonics to be used (if --gaussian_splatting is set, --sh_degree should not be larger than 3). Default = 0.
   #### --convert_SHs_python
-  Flag to make pipeline compute forward and backward of SHs with PyTorch instead of ours.
+  Flag to make pipeline compute forward and backward of SHs with PyTorch instead of ours. If --gaussian_splatting is not set, this flag will be ignored.
   #### --convert_cov3D_python
   Flag to make pipeline compute forward and backward of the 3D covariance with PyTorch instead of ours.
   #### --debug
@@ -122,8 +168,6 @@ python featsplat/train.py -s <path to COLMAP or NeRF Synthetic dataset>
   Path to a saved checkpoint to continue training from.
   #### --quiet 
   Flag to omit any text written to standard out pipe. 
-  #### --feature_lr
-  Spherical harmonics features learning rate, ```0.0025``` by default.
   #### --opacity_lr
   Opacity learning rate, ```0.05``` by default.
   #### --scaling_lr
@@ -156,13 +200,14 @@ python featsplat/train.py -s <path to COLMAP or NeRF Synthetic dataset>
 </details>
 <br>
 
-Note that similar to MipNeRF360, we target images at resolutions in the 1-1.6K pixel range. For convenience, arbitrary-size inputs can be passed and will be automatically resized if their width exceeds 1600 pixels. We recommend to keep this behavior, but you may force training to use your higher-resolution images by setting ```-r 1```.
+Following 3DGS and MipNeRF360, we target images at resolutions in the 1-1.6K pixel range. For convenience, arbitrary-size inputs can be passed and will be automatically resized if their width exceeds 1600 pixels. We recommend to keep this behavior, but you may force training to use your higher-resolution images by setting ```-r 1```.
 
+#### Changing the Features vectors' size
 
 ### Evaluation
 By default, the trained models use all available images in the dataset. To train them while withholding a test set for evaluation, use the ```--eval``` flag. This way, you can render training/test sets and produce error metrics as follows:
 ```shell
-python train.py -s <path to COLMAP or NeRF Synthetic dataset> --eval # Train with train/test split
+python featsplat/train.py -s <path to COLMAP or NeRF Synthetic dataset> --pixel_embedding --pos_embedding --eval # Train with train/test split
 python render.py -m <path to trained model> # Generate renderings
 python metrics.py -m <path to trained model> # Compute error metrics on renderings
 ```
@@ -184,6 +229,8 @@ python metrics.py -m <path to pre-trained model>
   Flag to skip rendering the test set.
   #### --quiet 
   Flag to omit any text written to standard out pipe. 
+  #### --gaussian_splatting
+  Add this flag to render a basic 3D Gaussian Splatting model.
 
   **The below parameters will be read automatically from the model path, based on what was used for training. However, you may override them by providing them explicitly on the command line.** 
 
