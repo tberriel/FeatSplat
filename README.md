@@ -422,7 +422,7 @@ python featsplat/stream.py -s <source_path> -m <model_path>
 and then on a different shell run
 
 ```shell
-./<SIBR install dir>/bin/SIBR_remoteGaussian_app
+./<SIBR install dir>/bin/SIBR_remoteGaussian_app --rendering-size 1752 1168 --force-aspect-ratio
 ```
 
 ## TODO
