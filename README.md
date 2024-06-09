@@ -100,7 +100,7 @@ python featsplat/train.py -s <path to COLMAP or NeRF Synthetic dataset> --pixel_
   #### --rot_embedding
   Add this flag to concatenate the camera rotation encoded as Euler angles to the feature vectors before the MLP.
   #### --images_extension = ".png"
-  Extension of the RGB images filed. For ScanNet++ dataset use ".JPG", (i.e. --image_extension .JPG ). Default = ".png" 
+  Extension of the RGB images filed. For ScanNet++ dataset use ".JPG", (i.e. --image_extension .JPG ). This flag is only taken into account for Blender like datasets. Default = ".png".
   #### --feature_lr_init
   Initial learning rate for Feature vectors. If --gaussian_splating is set, this will be the SHs learning rate. Default = 0.0025
   #### --feature_lr_final 
@@ -125,7 +125,7 @@ python featsplat/train.py -s <path to COLMAP or NeRF Synthetic dataset> --pixel_
   Weight of the Semantic Cross-Entropy Loss. Default is 0.001. If --n_classes = 0, this flag is ignored.
 
   #### --gaussian_splatting
-  Add this flag to train a basic 3D Gaussian Splatting model. If set the follwing flags will be ignored: n_latents, h_layers, n_neurons, pixel_embedding, pos_embedding, rot_embedding, n_classes, weighted_ce_loss, --semantic_classes_path --lambda_sem . **Do not add this flag to train a Feature Splatting model**.
+  Add this flag to train a basic 3D Gaussian Splatting model. If set the follwing flags will be ignored: n_latents, h_layers, n_neurons, pixel_embedding, pos_embedding, rot_embedding, n_classes, weighted_ce_loss, semantic_classes_path, lambda_sem . **Do not add this flag to train a Feature Splatting model**.
 
   **Base 3DGS Flags**
   #### --source_path / -s
@@ -159,9 +159,9 @@ python featsplat/train.py -s <path to COLMAP or NeRF Synthetic dataset> --pixel_
   #### --port 
   Port to use for GUI server, ```6009``` by default.
   #### --test_iterations
-  Space-separated iterations at which the training script computes L1 and PSNR over test set, ```7000 30000``` by default.
+  Space-separated iterations at which the training script computes L1 and PSNR over test set, ```7_000, 21000, 30_000, 35_000, 42_000``` by default.
   #### --save_iterations
-  Space-separated iterations at which the training script saves the Gaussian model, ```7000 30000 <iterations>``` by default.
+  Space-separated iterations at which the training script saves the Gaussian model, ```7_000, 21000, 30_000, 35_000, 42_000 <iterations>``` by default.
   #### --checkpoint_iterations
   Space-separated iterations at which to store a checkpoint for continuing later, saved in the model directory.
   #### --start_checkpoint
@@ -202,20 +202,20 @@ python featsplat/train.py -s <path to COLMAP or NeRF Synthetic dataset> --pixel_
 
 Following 3DGS and MipNeRF360, we target images at resolutions in the 1-1.6K pixel range. For convenience, arbitrary-size inputs can be passed and will be automatically resized if their width exceeds 1600 pixels. We recommend to keep this behavior, but you may force training to use your higher-resolution images by setting ```-r 1```.
 
-#### Changing the Features vectors' size
 
 ### Evaluation
 By default, the trained models use all available images in the dataset. To train them while withholding a test set for evaluation, use the ```--eval``` flag. This way, you can render training/test sets and produce error metrics as follows:
 ```shell
 python featsplat/train.py -s <path to COLMAP or NeRF Synthetic dataset> --pixel_embedding --pos_embedding --eval # Train with train/test split
-python render.py -m <path to trained model> # Generate renderings
-python metrics.py -m <path to trained model> # Compute error metrics on renderings
+python featsplat/render.py -m <path to trained model> # Generate renderings
+python featsplat/metrics.py -m <path to trained model> # Compute error metrics on renderings
+python featsplat/computation_metrics.py -m <path to trained model> # Compute computational metrics
 ```
 
-If you want to evaluate our [pre-trained models](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/datasets/pretrained/models.zip), you will have to download the corresponding source data sets and indicate their location to ```render.py``` with an additional ```--source_path/-s``` flag. 
+If you want to evaluate our [pre-trained models](https://mega.nz/file/ObRwHYxK#cBEKdGkaVAIfu1GE3kRwfsv20BAFDySklOQG0ket_oo), you will have to download the corresponding source data sets and indicate their location to ```render.py``` with an additional ```--source_path/-s``` flag. 
 ```shell
-python render.py -m <path to pre-trained model> -s <path to COLMAP dataset>
-python metrics.py -m <path to pre-trained model>
+python featsplat/render.py -m <path to pre-trained model> -s <path to COLMAP dataset>
+python featsplat/metrics.py -m <path to pre-trained model>
 ```
 
 <details>
@@ -245,7 +245,7 @@ python metrics.py -m <path to pre-trained model>
   #### --white_background / -w
   Add this flag to use white background instead of black (default), e.g., for evaluation of NeRF Synthetic dataset.
   #### --convert_SHs_python
-  Flag to make pipeline render with computed SHs from PyTorch instead of ours.
+  Flag to make pipeline render with computed SHs from PyTorch instead of CUDA's. If --gaussian_splatting is not set, this flag will be ignored.
   #### --convert_cov3D_python
   Flag to make pipeline render with computed 3D covariance from PyTorch instead of ours.
 
@@ -259,18 +259,32 @@ python metrics.py -m <path to pre-trained model>
 </details>
 <br>
 
-We further provide the ```full_eval.py``` script. This script specifies the routine used in our evaluation and demonstrates the use of some additional parameters, e.g., ```--images (-i)``` to define alternative image directories within COLMAP data sets. If you have downloaded and extracted all the training data, you can run it like this:
+We further provide a modified version of Like 3DGS' ```full_eval.py``` script. This script specifies the routine used in our evaluation and demonstrates the use of some additional parameters, e.g., ```--images (-i)``` to define alternative image directories within COLMAP data sets. If you have downloaded and extracted all the training data, you can run it like this:
 ```shell
-python full_eval.py -m360 <mipnerf360 folder> -tat <tanks and temples folder> -db <deep blending folder>
+python featsplat/full_eval.py -m360 <mipnerf360 folder> -tat <tanks and temples folder> -db <deep blending folder> -s <scannetpp> --cam_pos --pembedding
 ```
-In the current version, this process takes about 7h on our reference machine containing an A6000. If you want to do the full evaluation on our pre-trained models, you can specify their download location and skip training. 
+In the current version, this process takes about 10h for Mip-360, T\&T and DB, and 30h for ScanNet++ on our reference machine containing an A100. If you want to do the full evaluation on our pre-trained models, you can specify their download location and skip training. 
 ```shell
-python full_eval.py -o <directory with pretrained models> --skip_training -m360 <mipnerf360 folder> -tat <tanks and temples folder> -db <deep blending folder>
+python featsplat/full_eval.py -o <directory with pretrained models> --skip_training -m360 <mipnerf360 folder> -tat <tanks and temples folder> -db <deep blending folder> -s <scannetpp>
 ```
 
-If you want to compute the metrics on our paper's [evaluation images](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/evaluation/images.zip), you can also skip rendering. In this case it is not necessary to provide the source datasets. You can compute metrics for multiple image sets at a time. 
+Although we provide paper's [evaluation images](https://mega.nz/file/TPQWRbjK#DdrMNQRdezbxEdJP5OVtbeXUo7ftZLzA1L9eExHXkwY), they do not follow the directory structure expected by full_eval.py. In the next weeks we will update how to compute the metrics from those images. In the meantime, if you want to compute the metrics on our paper's, you can reorder the images to the following directory structure
+```
+directory with evaluation images
+  |-- Dataset n
+      |-- Scene n
+        |-- test
+          |-- ours_30000
+            |-- gt
+            |  |-- 00000.png
+            |  |-- ...
+            |-- renders
+              |-- 00000.png
+              |-- ...
+```
+and skip rendering. In this case it is not necessary to provide the source datasets. You can compute metrics for multiple image sets at a time. 
 ```shell
-python full_eval.py -m <directory with evaluation images>/garden ... --skip_training --skip_rendering
+python full_eval.py -o <directory with evaluation images> --skip_training --skip_rendering
 ```
 
 <details>
@@ -282,19 +296,62 @@ python full_eval.py -m <directory with evaluation images>/garden ... --skip_trai
   Flag to skip rendering stage.
   #### --skip_metrics
   Flag to skip metrics calculation stage.
+  #### --skip_comp_metrics
+  Flag to skip computational metrics calculation stage.
+  #### --test_midway
+  Flag to perform evaluation during training. If set, evaluation on the validation set will be performed at the default values of flag --test_iterations from train.py.
   #### --output_path
-  Directory to put renderings and results in, ```./eval``` by default, set to pre-trained model location if evaluating them.
+  Directory to put renderings and results in, ```./data/working/eval``` by default, set to pre-trained model location if evaluating them.
+  #### --train_iterations
+  Maximum number of steps to optimize the model. Default = 30_000.
+  #### --n_latents
+  Size of Gaussians' feature vectors. Default = 32 . This value, should be equal to the value of N_CHANNELS in featsplat/submodules/diff-feat-gaussian-rasterization/ config.h . 
+  #### --h_layers
+  Number of hidden layer of the output MLP. Default = 0
+  #### --n_neurons
+  Number of neurons on the output MLP neurons. Default = 64.
+  #### --n_classes
+  Number of classes to perform closed-vocabulary semantic segmentation. Default = 0.
+  #### --lambda_sem
+  Weight of the Semantic Cross-Entropy Loss. Default is 0.001. If --n_classes = 0, this flag is ignored.
+  #### --pembedding
+  Add this flag to concatenate the pixel embedding to the feature vectors before the MLP.
+  #### --cam_pos
+  Add this flag to concatenate the camera position embedding to the feature vectors before the MLP.
+  #### --cam_rot
+  Add this flag to concatenate the camera rotation encoded as Euler angles to the feature vectors before the MLP.
+  #### --gs
+  Add this flag to train a basic 3D Gaussian Splatting model. If set the follwing flags will be ignored: n_latents, h_layers, n_neurons, pembedding, cam_pos, cam_rot, n_classes, lambda_sem . **Do not add this flag to train a Feature Splatting model**.
+  #### --data_device
+  Specifies where to put the source image data, ```cuda``` by default, recommended to use ```cpu``` if training on large/high-resolution dataset, will reduce VRAM consumption, but slightly slow down training.  
+  #### --sh_degree
+  Order of spherical harmonics to be used (if --gaussian_splatting is set, --sh_degree should not be larger than 3). Default = 3 if --gs set, else 0.
+
   #### --mipnerf360 / -m360
-  Path to MipNeRF360 source datasets, required if training or rendering.
+  Path to MipNeRF360 source datasets. If not set, the dataset will not be optimized.
   #### --tanksandtemples / -tat
-  Path to Tanks&Temples source datasets, required if training or rendering.
+  Path to Tanks&Temples source datasets. If not set, the dataset will not be optimized.
   #### --deepblending / -db
-  Path to Deep Blending source datasets, required if training or rendering.
+  Path to Deep Blending source datasets. If not set, the dataset will not be optimized.
+  #### --scannetpp / -s
+  Path to ScanNet++ source datasets. If not set, the dataset will not be optimized.
+
+  #### --mipnerf360_outdoor_scenes
+  List of outdoor scenes from MipNeRF360 to optimize. Default = [bicycle, flowers, garden, stump, treehill].
+  #### --mipnerf360_indoor_scenes
+  List of indoor scenes from MipNeRF360 to optimize. Default = [room, counter, kitchen, bonsai].
+  #### --tanks_and_temples_scenes
+  List of scenes from Tank \& Temples to optimize. Default = [truck, train].
+  #### --
+  List of scenes from Deep Blending to optimize. Default = [drjohnson, playroom].
+  #### --scannetpp_scenes
+  List of scenes from ScanNet++ to opTimize. Default = [0a5c013435, f07340dfea, 7bc286c1b6, d2f44bf242, 85251de7d1, 0e75f3c4d9, 98fe276aa8, 7e7cd69a59, f3685d06a9, 21d970d8de, 8b5caf3398, ada5304e41, 4c5c60fa76, ebc200e928, a5114ca13d, 5942004064, 1ada7a0617,f6659a3107, 1a130d092a, 80ffca8a48, 08bbbdcc3d]
+
 </details>
 <br>
 
 ## Interactive Viewers
-This repository is compatible with [3D Gaussian Splatting](https://github.com/graphdeco-inria/gaussian-splatting?tab=readme-ov-file) remote application developed using the [SIBR](https://sibr.gitlabpages.inria.fr/) framework.
+This repository is compatible with [3D Gaussian Splatting](https://github.com/graphdeco-inria/gaussian-splatting?tab=readme-ov-file) Network Viewer remote application developed using the [SIBR](https://sibr.gitlabpages.inria.fr/) framework. Currently it is not comaptible with Real-Time Viewer.
 
 ### Hardware Requirements
 - OpenGL 4.5-ready GPU and drivers (or latest MESA software)
@@ -310,6 +367,7 @@ This repository is compatible with [3D Gaussian Splatting](https://github.com/gr
 ### Installation from Source
 If you cloned with submodules (e.g., using ```--recursive```), the source code for the viewers is found in ```SIBR_viewers```. The network viewer runs within the SIBR framework for Image-based Rendering applications.
 
+#### Ubuntu 22.04
 You will need to install a few dependencies before running the project setup.
 ```shell
 # Dependencies
@@ -319,6 +377,12 @@ cd SIBR_viewers
 cmake -Bbuild . -DCMAKE_BUILD_TYPE=Release # add -G Ninja to build faster
 cmake --build build -j24 --target install
 ``` 
+
+#### Ubuntu 20.04
+Backwards compatibility with Focal Fossa is not fully tested, but building SIBR with CMake should still work after invoking
+```shell
+git checkout fossa_compatibility
+```
 
 ### Navigation in SIBR Viewers
 The SIBR interface provides several methods of navigating the scene. By default, you will be started with an FPS navigator, which you can control with ```W, A, S, D, Q, E``` for camera translation and ```I, K, J, L, U, O``` for rotation. Alternatively, you may want to use a Trackball-style navigator (select from the floating menu). You can also snap to a camera from the data set with the ```Snap to``` button or find the closest camera with ```Snap to closest```. The floating menues also allow you to change the navigation speed. You can use the ```Scaling Modifier``` to control the size of the displayed Gaussians, or show the initial point cloud.
@@ -349,44 +413,17 @@ The network viewer allows you to connect to a running training process on the sa
 <br>
 
 ### Running the Real-Time Viewer
+Currently, FeatSplat models are not compatible with SIBR's Real-Time Viewer. To visualize an optimized scene we provide a script to stream the rendered points of view to the Network Viewer
 
-
-
-
-https://github.com/graphdeco-inria/gaussian-splatting/assets/40643808/0940547f-1d82-4c2f-a616-44eabbf0f816
-
-
-
-
-After extracting or installing the viewers, you may run the compiled ```SIBR_gaussianViewer_app[_config]``` app in ```<SIBR install dir>/bin```, e.g.: 
+First run on a shell with base directory featsplat repository
 ```shell
-./<SIBR install dir>/bin/SIBR_gaussianViewer_app -m <path to trained model>
+python featsplat/stream.py -s <source_path> -m <model_path>
+```
+and then on a different shell run
+
+```shell
+./<SIBR install dir>/bin/SIBR_remoteGaussian_app
 ```
 
-It should suffice to provide the ```-m``` parameter pointing to a trained model directory. Alternatively, you can specify an override location for training input data using ```-s```. To use a specific resolution other than the auto-chosen one, specify ```--rendering-size <width> <height>```. Combine it with ```--force-aspect-ratio``` if you want the exact resolution and don't mind image distortion. 
-
-
-![Teaser image](assets/select.png)
-
-In addition to the initial point cloud and the splats, you also have the option to visualize the Gaussians by rendering them as ellipsoids from the floating menu.
-SIBR has many other functionalities, please see the [documentation](https://sibr.gitlabpages.inria.fr/) for more details on the viewer, navigation options etc. There is also a Top View (available from the menu) that shows the placement of the input cameras and the original SfM point cloud; please note that Top View slows rendering when enabled. The real-time viewer also uses slightly more aggressive, fast culling, which can be toggled in the floating menu. If you ever encounter an issue that can be solved by turning fast culling off, please let us know.
-
-<details>
-<summary><span style="font-weight: bold;">Primary Command Line Arguments for Real-Time Viewer</span></summary>
-
-  #### --model-path / -m
-  Path to trained model.
-  #### --iteration
-  Specifies which of state to load if multiple are available. Defaults to latest available iteration.
-  #### --path / -s
-  Argument to override model's path to source dataset.
-  #### --rendering-size 
-  Takes two space separated numbers to define the resolution at which real-time rendering occurs, ```1200``` width by default. Note that to enforce an aspect that differs from the input images, you need ```--force-aspect-ratio``` too.
-  #### --load_images
-  Flag to load source dataset images to be displayed in the top view for each camera.
-  #### --device
-  Index of CUDA device to use for rasterization if multiple are available, ```0``` by default.
-  #### --no_interop
-  Disables CUDA/GL interop forcibly. Use on systems that may not behave according to spec (e.g., WSL2 with MESA GL 4.5 software rendering).
-</details>
-<br>
+## TODO
+- [ ] Explain how to change Features vectors' size
