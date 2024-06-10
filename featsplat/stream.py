@@ -15,7 +15,7 @@ from feat_gaussian_renderer import render, network_gui
 import sys
 from utils.general_utils import safe_state
 from argparse import ArgumentParser, Namespace
-from arguments import PipelineParams, OptimizationParams
+from arguments import PipelineParams, OptimizationParams, get_combined_args
 from scene.feat_gaussian_model import FeatGaussianModel
 from arguments import ModelParams
 
@@ -53,14 +53,14 @@ if __name__ == "__main__":
     os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
     # Set up command line argument parser
     parser = ArgumentParser(description="Viewer script parameters")
-    lp = ModelParams(parser)
+    lp = ModelParams(parser, sentinel=True)
     op = OptimizationParams(parser)
     pp = PipelineParams(parser)
     parser.add_argument('--ip', type=str, default="127.0.0.1")
     parser.add_argument('--port', type=int, default=6009)
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[])
-    args = parser.parse_args(sys.argv[1:])
+    args = get_combined_args(parser)
     
     print("Streaming " + args.model_path)
 
