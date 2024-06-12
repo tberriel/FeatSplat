@@ -47,7 +47,7 @@ class Scene:
             scene_info = sceneLoadTypeCallbacks["Colmap"](args.source_path, args.images, args.eval)
         elif os.path.exists(os.path.join(args.source_path, "transforms_train.json")):
             print("Found transforms_train.json file, assuming Blender data set!")
-            scene_info = sceneLoadTypeCallbacks["Blender"](args.source_path, args.white_background, args.eval, extension=args.images_extension, semantic_classes = args.n_classes, load_train=load_train)
+            scene_info = sceneLoadTypeCallbacks["Blender"](args.source_path, args.white_background, args.eval, extension=args.images_extension, semantic_classes = args.n_classes, load_train=load_train, semantic_classes_path=args.semantic_classes_path)
         else:
             assert False, f"Could not recognize scene {args.source_path} type!"
 

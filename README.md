@@ -32,6 +32,11 @@ The repository contains submodules. To avoid missing dependencies clone using th
 git clone git@github.com:tberriel/featsplat.git --recursive
 ```
 
+## TODO
+- [ ] Explain how to change Features vectors' size
+- [ ] Add instructions to preprocess ScanNet++ and semantic data
+
+
 ## Overview
 The code and repository is based on the official [3D Gaussian Splatting](https://github.com/graphdeco-inria/gaussian-splatting?tab=readme-ov-file) impementation. 
 
@@ -424,6 +429,3 @@ and then on a different shell run
 ```shell
 ./<SIBR install dir>/bin/SIBR_remoteGaussian_app --rendering-size 1752 1168 --force-aspect-ratio
 ```
-
-## TODO
-- [ ] Explain how to change Features vectors' size

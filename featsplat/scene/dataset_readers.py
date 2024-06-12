@@ -12,6 +12,7 @@
 # 
 
 import os
+from re import S
 import sys
 from PIL import Image
 from typing import NamedTuple
@@ -179,18 +180,20 @@ def readColmapSceneInfo(path, images, eval, llffhold=8):
                            nerf_normalization=nerf_normalization,
                            ply_path=ply_path)
     return scene_info
-def loadClasses(n_classes):
-    try:
-        file_name = "/media/tberriel/My_Book_2/ScanNetpp/decoded_data_nerfstudio/"+str(n_classes)+"_most_common_classes.csv"
-        import csv
-        data = []
-        with open(file_name, "r") as csvfile:
-            reader = csv.DictReader(csvfile)
-            for i,row in enumerate(reader):
-                data.append(row)
-    except:
-        print("Semantic classes not loaded. No file found for {} classes.".format(n_classes))
-        data = None
+def loadClasses(n_classes, semantic_classes_path):
+    data = None
+    if semantic_classes_path:
+        try:
+            #file_name = "/media/tberriel/My_Book_2/ScanNetpp/decoded_data_nerfstudio/"+str(n_classes)+"_most_common_classes.csv"
+            import csv
+            data = []
+            with open(semantic_classes_path, "r") as csvfile:
+                reader = csv.DictReader(csvfile)
+                for i,row in enumerate(reader):
+                    data.append(row)
+        except:
+            print("Semantic classes not loaded. No file found for {} classes.".format(n_classes))
+            
     return data
 
 def filtered_semantic_classes(sem_img, classes, n_classes):
@@ -201,7 +204,7 @@ def filtered_semantic_classes(sem_img, classes, n_classes):
         filtered_img = np.where(sem_img == int(class_i["idx"]), i, filtered_img)
     return Image.fromarray(filtered_img)
 
-def readCamerasFromTransforms(path, transformsfile, white_background, extension=".png", n_classes = 32):
+def readCamerasFromTransforms(path, transformsfile, white_background, extension=".png", n_classes = 32, semantic_classes_path=None):
     cam_infos = []
 
     with open(os.path.join(path, transformsfile)) as json_file:
@@ -209,7 +212,7 @@ def readCamerasFromTransforms(path, transformsfile, white_background, extension=
         fovx = contents["camera_angle_x"]
 
         frames = contents["frames"]
-        selected_classes = loadClasses(n_classes)
+        selected_classes = loadClasses(n_classes, semantic_classes_path)
         for idx, frame in enumerate(frames):
             cam_name = os.path.join(path, frame["file_path"] + extension)
 
@@ -252,9 +255,9 @@ def readCamerasFromTransforms(path, transformsfile, white_background, extension=
             
     return cam_infos
 
-def readNerfSyntheticInfo(path, white_background, eval, extension=".png", semantic_classes=0, load_train = True):
+def readNerfSyntheticInfo(path, white_background, eval, extension=".png", semantic_classes=0, load_train = True, semantic_classes_path = None):
     print("Reading Test Transforms")
-    test_cam_infos = readCamerasFromTransforms(path, "transforms_test.json", white_background, extension, n_classes=semantic_classes)
+    test_cam_infos = readCamerasFromTransforms(path, "transforms_test.json", white_background, extension, n_classes=semantic_classes, semantic_classes_path=semantic_classes_path)
     train_cam_infos, nerf_normalization = None, None
 
     if load_train:
