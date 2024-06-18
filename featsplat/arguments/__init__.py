@@ -58,7 +58,7 @@ class ModelParams(ParamGroup):
         self.weighted_ce_loss = False
         self._source_path = ""
         self._model_path = ""
-        self._semantic_classes_path = ""
+        self.semantic_classes_path = ""
         self._images = "images"
         self._resolution = -1
         self._white_background = False
