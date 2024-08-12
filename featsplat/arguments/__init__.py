@@ -49,7 +49,7 @@ class ModelParams(ParamGroup):
     def __init__(self, parser, sentinel=False):
         self.sh_degree = 0
         self.n_latents = 32
-        self.n_classes = 64
+        self.n_classes = 0#64
         self.h_layers = 0
         self.n_neurons = 64
         self.pixel_embedding = False
@@ -86,6 +86,7 @@ class OptimizationParams(ParamGroup):
         self.position_lr_final = 0.0000016
         self.position_lr_delay_mult = 0.01
         self.position_lr_max_steps = self.iterations
+        self.feature_lr = 0.0025
         self.feature_lr_init = 0.0025
         self.feature_lr_final = 0.00025
         self.feature_lr_max_steps = self.iterations
