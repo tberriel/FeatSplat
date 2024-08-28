@@ -13,7 +13,7 @@
 import torch
 from torch import nn
 import numpy as np
-from utils.graphics_utils import getWorld2View2, getProjectionMatrix, compute_rays, rot_to_euler
+from utils.graphics_utils import getWorld2View2, getProjectionMatrix, compute_rays, rot_to_euler, getIntrinsicMatrix
 class Camera(nn.Module):
     def __init__(self, colmap_id, R, T, FoVx, FoVy, image, gt_alpha_mask,
                  image_name, uid,
@@ -51,6 +51,7 @@ class Camera(nn.Module):
         self.scale = scale
 
         self.world_view_transform = torch.tensor(getWorld2View2(R, T, trans, scale)).transpose(0, 1).cuda()
+        self.intrinsic_matrix = getIntrinsicMatrix(self.znear, self.zfar, self.FoVx, self.FoVy, self.image_height, self.image_width).cuda()
         self.projection_matrix = getProjectionMatrix(znear=self.znear, zfar=self.zfar, fovX=self.FoVx, fovY=self.FoVy).transpose(0,1).cuda()
         self.full_proj_transform = (self.world_view_transform.unsqueeze(0).bmm(self.projection_matrix.unsqueeze(0))).squeeze(0)
         T_world_camera =self.world_view_transform.inverse()
@@ -66,6 +67,7 @@ class MiniCam:
         self.znear = znear
         self.zfar = zfar
         self.world_view_transform = world_view_transform
+        self.intrinsic_matrix = getIntrinsicMatrix(self.znear, self.zfar, self.FoVx, self.FoVy, height, width).cuda()
         self.full_proj_transform = full_proj_transform
         view_inv = torch.inverse(self.world_view_transform)
         self.camera_center = view_inv[3][:3]
