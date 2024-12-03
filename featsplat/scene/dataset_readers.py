@@ -14,6 +14,7 @@
 import os
 from re import S
 import sys
+from pathlib import Path
 from PIL import Image
 from typing import NamedTuple
 from scene.colmap_loader import read_extrinsics_text, read_intrinsics_text, qvec2rotmat, \
@@ -214,7 +215,10 @@ def readCamerasFromTransforms(path, transformsfile, white_background, extension=
         frames = contents["frames"]
         selected_classes = loadClasses(n_classes, semantic_classes_path)
         for idx, frame in enumerate(frames):
-            cam_name = os.path.join(path, frame["file_path"] + extension)
+            cam_name = Path(path) / frame["file_path"]
+            if len(cam_name.suffix)==0:
+                cam_name = Path(path) / frame["file_path"]+extension
+            #cam_name = os.path.join(path, frame["file_path"] + extension)
 
             # NeRF 'transform_matrix' is a camera-to-world transform
             c2w = np.array(frame["transform_matrix"])

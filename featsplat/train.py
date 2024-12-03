@@ -13,8 +13,8 @@ import torch
 from scene import Scene
 import os
 from tqdm import tqdm
-from random import randint
-from feat_gaussian_renderer import render, network_gui
+from random import gauss, randint
+from feat_gaussian_renderer import render, only_rasterize, network_gui
 from utils.general_utils import safe_state
 from argparse import ArgumentParser, Namespace
 from arguments import ModelParams, PipelineParams, OptimizationParams
@@ -92,7 +92,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                     net_image_bytes = None
                     custom_cam, do_training, pipe.convert_SHs_python, pipe.compute_cov3D_python, keep_alive, scaling_modifer = network_gui.receive()
                     if custom_cam != None:
-                        out =  render(custom_cam, gaussians, pipe, background, scaling_modifer, override_color=gaussians.get_features)
+                        out =  render(custom_cam, gaussians, pipe, background, scaling_modifer, override_color=gaussians.get_features, features_splatting=not gaussian_splatting)
                         net_image = out["render"]
                         net_image_bytes = memoryview((torch.clamp(net_image, min=0, max=1.0) * 255).byte().permute(1, 2, 0).contiguous().cpu().numpy())
                         if dataset.n_classes>0:
@@ -121,14 +121,18 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         if gaussian_splatting:
             bg = torch.rand((3), device="cuda") if opt.random_background else background
 
-            render_pkg = render(viewpoint_cam, gaussians, pipe, bg)
+            segmentation = None
+            image, alphas, meta =  only_rasterize(viewpoint_cam, gaussians, pipe, bg, override_color=gaussians.get_features, features_splatting=True)
+            
         else:
             bg = torch.rand((gaussians.n_latents), device="cuda") if opt.random_background else background
+            
+            latent_image, alphas, meta =  only_rasterize(viewpoint_cam, gaussians, pipe, bg, override_color=gaussians.get_features, features_splatting=True)
+            image, segmentation = gaussians.nn_forward(latent_image[0].permute(2,0,1),viewpoint_cam.camera_center, viewpoint_cam.camera_rot, None)
 
-            render_pkg = render(viewpoint_cam, gaussians, pipe, bg, override_color=gaussians.get_features, features_splatting=True)
-
-        image, segmentation, viewspace_point_tensor, visibility_filter, radii = render_pkg["render"], render_pkg["segmentation"], render_pkg["viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
-
+        visibility_filter, radii = meta["radii"][0] > 0, meta["radii"][0]
+        meta["means2d"].retain_grad() 
+            
         # Loss
         if segmentation is not None:
             gt_segmentation = viewpoint_cam.original_semantic.cuda()
@@ -162,7 +166,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             if iteration < opt.densify_until_iter:
                 # Keep track of max radii in image-space for pruning
                 gaussians.max_radii2D[visibility_filter] = torch.max(gaussians.max_radii2D[visibility_filter], radii[visibility_filter])
-                gaussians.add_densification_stats(viewspace_point_tensor, visibility_filter)
+                gaussians.add_densification_stats(meta["means2d"], visibility_filter)
 
                 if iteration > opt.densify_from_iter and iteration % opt.densification_interval == 0:
                     size_threshold = 20 if iteration > opt.opacity_reset_interval else None
@@ -225,7 +229,7 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, ce_loss, elapsed, 
                     image = torch.clamp(out["render"], 0.0, 1.0)
                     segmentation = out["segmentation"]
                     
-                    gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
+                    gt_image = torch.clamp(viewpoint.original_image.to("cuda")/ 255.0, 0.0, 1.0)
                     if segmentation is not None:
                         gt_segmentation = viewpoint.original_semantic.cuda()
 

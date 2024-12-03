@@ -44,12 +44,18 @@ class FeatGaussianModel(GaussianModel):
             embedding_size +=3
         if opt.rot_embedding:
             embedding_size +=3
-        mlp = [nn.Linear(opt.n_latents+embedding_size, opt.n_neurons),
+        try:
+            n_neurons =  opt.n_neurons
+            h_layers = opt.h_layers
+        except:
+            n_neurons = 64
+            h_layers = 0
+        mlp = [nn.Linear(opt.n_latents+embedding_size, n_neurons),
             nn.SiLU()]
-        for _ in range(opt.h_layers):
-            mlp+=[nn.Linear(opt.n_neurons, opt.n_neurons),
+        for _ in range(h_layers):
+            mlp+=[nn.Linear(n_neurons, n_neurons),
                 nn.SiLU()]
-        mlp+=[nn.Linear(opt.n_neurons,3*(opt.sh_degree+1)**2+opt.n_classes)]
+        mlp+=[nn.Linear(n_neurons,3*(opt.sh_degree+1)**2+opt.n_classes)]
         self.mlp = nn.Sequential(*mlp).cuda()
         
         self.setup_functions()
@@ -145,7 +151,6 @@ class FeatGaussianModel(GaussianModel):
 
         print("Number of points at initialisation : ", fused_point_cloud.shape[0])
 
-        #dist2 = torch.clamp_min(distCUDA2(torch.from_numpy(np.asarray(pcd.points)).float().cuda()), 0.0000001)
         points = torch.from_numpy(np.asarray(pcd.points)).float().cuda()
         dist2_avg = (knn(points, 4)[:, 1:] ** 2).mean(dim=-1)  # [N,]
         scales = torch.log(torch.sqrt(dist2_avg))[...,None].repeat(1, 3)
@@ -199,10 +204,16 @@ class FeatGaussianModel(GaussianModel):
                 param_group['lr'] = lr
 
     def construct_list_of_attributes(self):
-        l = super().construct_list_of_attributes()
+        l = ['x', 'y', 'z', 'nx', 'ny', 'nz']
         
         for i in range(self._features.shape[1]):
             l.append('f_nn_{}'.format(i))
+        l.append('opacity')
+        for i in range(self._scaling.shape[1]):
+            l.append('scale_{}'.format(i))
+        for i in range(self._rotation.shape[1]):
+            l.append('rot_{}'.format(i))
+        
         return l
 
     def save_ply(self, path):
