@@ -1,10 +1,3 @@
 [submodule "featsplat/submodules/simple-knn"]
 	path = featsplat/submodules/simple-knn
 	url = https://gitlab.inria.fr/bkerbl/simple-knn.git
-[submodule "featsplat/submodules/diff-gaussian-rasterization"]
-	path = featsplat/submodules/diff-gaussian-rasterization
-	url = git@github.com:graphdeco-inria/diff-gaussian-rasterization.git
-[submodule "featsplat/submodules/diff-feat-gaussian-rasterization"]
-	path = featsplat/submodules/diff-feat-gaussian-rasterization
-	url = git@github.com:tberriel/diff-feat-gaussian-rasterization.git
-
