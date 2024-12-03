@@ -15,7 +15,7 @@ import numpy as np
 from torch import nn
 import os
 from plyfile import PlyData, PlyElement
-from utils.general_utils import inverse_sigmoid, get_expon_lr_func, get_linear_lr_func, build_rotation
+from utils.general_utils import inverse_sigmoid, get_expon_lr_func, get_linear_lr_func, build_rotation, knn
 from utils.system_utils import mkdir_p
 from utils.graphics_utils import BasicPointCloud
 
@@ -145,8 +145,10 @@ class FeatGaussianModel(GaussianModel):
 
         print("Number of points at initialisation : ", fused_point_cloud.shape[0])
 
-        dist2 = torch.clamp_min(distCUDA2(torch.from_numpy(np.asarray(pcd.points)).float().cuda()), 0.0000001)
-        scales = torch.log(torch.sqrt(dist2))[...,None].repeat(1, 3)
+        #dist2 = torch.clamp_min(distCUDA2(torch.from_numpy(np.asarray(pcd.points)).float().cuda()), 0.0000001)
+        points = torch.from_numpy(np.asarray(pcd.points)).float().cuda()
+        dist2_avg = (knn(points, 4)[:, 1:] ** 2).mean(dim=-1)  # [N,]
+        scales = torch.log(torch.sqrt(dist2_avg))[...,None].repeat(1, 3)
         rots = torch.zeros((fused_point_cloud.shape[0], 4), device="cuda")
         rots[:, 0] = 1
 

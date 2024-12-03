@@ -17,6 +17,7 @@ from datetime import datetime
 import numpy as np
 import random
 from PIL.Image import Resampling
+from sklearn.neighbors import NearestNeighbors
 
 def inverse_sigmoid(x):
     return torch.log(x/(1-x))
@@ -208,3 +209,10 @@ class PositionalEncoding(torch.nn.Module):
 
         result = torch.cat((sines, cosines), -1)
         return result
+
+
+def knn(x: torch.Tensor, K: int = 4) -> torch.Tensor:
+    x_np = x.cpu().numpy()
+    model = NearestNeighbors(n_neighbors=K, metric="euclidean").fit(x_np)
+    distances, _ = model.kneighbors(x_np)
+    return torch.from_numpy(distances).to(x)
