@@ -17,7 +17,6 @@ import os
 from plyfile import PlyData, PlyElement
 from utils.general_utils import inverse_sigmoid, get_expon_lr_func, get_linear_lr_func, build_rotation
 from utils.system_utils import mkdir_p
-from simple_knn._C import distCUDA2
 from utils.graphics_utils import BasicPointCloud
 
 from scene.gaussian_model import GaussianModel
@@ -258,7 +257,7 @@ class FeatGaussianModel(GaussianModel):
         self._rotation = nn.Parameter(torch.tensor(rots, dtype=torch.float, device="cuda").requires_grad_(True))
 
         mlp_path = os.path.join(os.path.split(path)[0],"mlp.ckpt")
-        self.mlp.load_state_dict(torch.load(mlp_path))
+        self.mlp.load_state_dict(torch.load(mlp_path, weights_only=True))
 
     def replace_tensor_to_optimizer(self, tensor, name):
         optimizable_tensors = {}
