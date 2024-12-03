@@ -1,0 +1,8 @@
+data_root: /<path_to_scannetpp_data_root>/
+far: 20.0
+near: 0.05
+output_dir: /<path_to_scannetpp_data_root>/data/
+render_dslr: true
+render_iphone: false
+splits:
+- featsplat_split
