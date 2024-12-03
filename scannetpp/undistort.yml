@@ -1,0 +1,14 @@
+data_root: /<path_to_scannetpp_data_root>/
+downscale_factor: 2.0
+input_depth_dir: render_depth
+input_image_dir: resized_images
+input_mask_dir: resized_anon_masks
+input_sem_dir: render_semantic
+input_transforms_path: nerfstudio/transforms.json
+out_depth_dir: undistorted_projected_depth
+out_image_dir: undistorted_images
+out_mask_dir: undistorted_anon_masks
+out_sem_dir: undistorted_projected_semantic
+out_transforms_path: nerfstudio/transforms_undistorted.json
+splits:
+- featsplat_split

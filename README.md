@@ -32,11 +32,6 @@ The repository contains submodules. To avoid missing dependencies clone using th
 git clone git@github.com:tberriel/featsplat.git --recursive
 ```
 
-## TODO
-- [ ] Explain how to change Features vectors' size
-- [ ] Add instructions to preprocess ScanNet++ and semantic data
-
-
 ## Overview
 The code and repository is based on the official [3D Gaussian Splatting](https://github.com/graphdeco-inria/gaussian-splatting?tab=readme-ov-file) impementation. 
 
@@ -48,7 +43,9 @@ The repository has been tested on Ubuntu Linux 20.04.
 
 ### Data
 
-The MipNeRF360 scenes are hosted by the paper authors [here](https://jonbarron.info/mipnerf360/). You can find INRIA SfM data sets for Tanks&Temples and Deep Blending [here](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/datasets/input/tandt_db.zip). If you do not provide an output model directory (```-m```), trained models are written to folders with randomized unique names inside the ```output``` directory. At this point, the trained models may be viewed with the real-time viewer (see further below).
+The MipNeRF360 scenes are hosted by the paper authors [here](https://jonbarron.info/mipnerf360/). You can find INRIA SfM data sets for Tanks&Temples and Deep Blending [here](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/datasets/input/tandt_db.zip). For ScanNet++ data see [ReadMe](./scannetpp/README.md).
+
+If you do not provide an output model directory (```-m```), trained models are written to folders with randomized unique names inside the ```output``` directory. At this point, the trained models may be viewed with the real-time viewer (see further below).
 
 ## Optimizer
 
