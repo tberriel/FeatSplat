@@ -14,7 +14,7 @@ from scene import Scene
 import os
 from tqdm import tqdm
 from random import gauss, randint
-from feat_gaussian_renderer import render, only_rasterize, network_gui
+from feat_gaussian_renderer import render, rasterize, network_gui
 from utils.general_utils import safe_state
 from argparse import ArgumentParser, Namespace
 from arguments import ModelParams, PipelineParams, OptimizationParams
@@ -92,7 +92,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                     net_image_bytes = None
                     custom_cam, do_training, pipe.convert_SHs_python, pipe.compute_cov3D_python, keep_alive, scaling_modifer = network_gui.receive()
                     if custom_cam != None:
-                        out =  render(custom_cam, gaussians, pipe, background, scaling_modifer, override_color=gaussians.get_features, features_splatting=not gaussian_splatting)
+                        out = render(custom_cam, gaussians, features_splatting=not gaussian_splatting)
                         net_image = out["render"]
                         net_image_bytes = memoryview((torch.clamp(net_image, min=0, max=1.0) * 255).byte().permute(1, 2, 0).contiguous().cpu().numpy())
                         if dataset.n_classes>0:
@@ -122,12 +122,12 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             bg = torch.rand((3), device="cuda") if opt.random_background else background
 
             segmentation = None
-            image, alphas, meta =  only_rasterize(viewpoint_cam, gaussians, pipe, bg, override_color=gaussians.get_features, features_splatting=True)
+            image, alphas, meta =  rasterize(viewpoint_cam, gaussians)
             
         else:
             bg = torch.rand((gaussians.n_latents), device="cuda") if opt.random_background else background
             
-            latent_image, alphas, meta =  only_rasterize(viewpoint_cam, gaussians, pipe, bg, override_color=gaussians.get_features, features_splatting=True)
+            latent_image, alphas, meta =  rasterize(viewpoint_cam, gaussians)
             image, segmentation = gaussians.nn_forward(latent_image[0].permute(2,0,1),viewpoint_cam.camera_center, viewpoint_cam.camera_rot, None)
 
         visibility_filter, radii = meta["radii"][0] > 0, meta["radii"][0]
@@ -225,7 +225,7 @@ def training_report(tb_writer, iteration, Ll1, loss, l1_loss, ce_loss, elapsed, 
                 ce_test = 0.0
                 
                 for idx, viewpoint in enumerate(config['cameras']):
-                    out = renderFunc(viewpoint, scene.gaussians, *renderArgs,override_color=scene.gaussians.get_features,features_splatting=not gaussian_splatting)
+                    out = renderFunc(viewpoint, scene.gaussians, features_splatting=not gaussian_splatting)
                     image = torch.clamp(out["render"], 0.0, 1.0)
                     segmentation = out["segmentation"]
                     

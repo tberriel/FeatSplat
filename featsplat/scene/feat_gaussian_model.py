@@ -42,7 +42,7 @@ class FeatGaussianModel(GaussianModel):
             embedding_size +=2
         if opt.pos_embedding:
             embedding_size +=3
-        if opt.rot_embedding:
+        if self.rot_embedding:
             embedding_size +=3
         try:
             n_neurons =  opt.n_neurons
@@ -111,7 +111,7 @@ class FeatGaussianModel(GaussianModel):
             camera_pos = camera_pos[None,...].repeat((h*w, 1))
             embeddings.append(camera_pos)
         if self.pixel_embedding:
-            if self.p_embedding is None or (self.p_embedding.shape[1] != h or self.p_embedding.shape[2] != w):
+            if self.p_embedding is None or (self.p_embedding.shape[0] == h*w):
                 umap = torch.linspace(-1, 1, w, device = projected_features.device)
                 vmap = torch.linspace(-1, 1, h, device = projected_features.device)
                 umap, vmap = torch.meshgrid(umap, vmap, indexing='xy')
