@@ -8,7 +8,7 @@ from argparse import ArgumentParser, Namespace
 from arguments import PipelineParams, OptimizationParams, get_combined_args
 from scene.feat_gaussian_model import FeatGaussianModel
 from arguments import ModelParams
-
+from utils.seg_utils import mapPredToRGB
 
 def streaming(dataset, opt, pipe):
     gaussians = FeatGaussianModel(dataset)
@@ -29,11 +29,14 @@ def streaming(dataset, opt, pipe):
                     if custom_cam != None:
                         out =  render(custom_cam, gaussians, features_splatting=True)
                         net_image = out["render"]
+                        if args.semantic and out["segmentation"] is not None:
+                            net_image = net_image*0.6+ 0.4*mapPredToRGB(out["segmentation"])[0]
                         net_image_bytes = memoryview((torch.clamp(net_image, min=0, max=1.0) * 255).byte().permute(1, 2, 0).contiguous().cpu().numpy())
                         
                     network_gui.send(net_image_bytes, dataset.source_path)
 
                 except Exception as e:
+                    print(e)
                     network_gui.conn = None
 
 
@@ -47,6 +50,7 @@ if __name__ == "__main__":
     parser.add_argument('--ip', type=str, default="127.0.0.1")
     parser.add_argument('--port', type=int, default=6009)
     parser.add_argument("--quiet", action="store_true")
+    parser.add_argument("--semantic", action="store_true")
     parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[])
     args = get_combined_args(parser)
     

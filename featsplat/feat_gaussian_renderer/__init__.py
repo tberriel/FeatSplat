@@ -28,7 +28,7 @@ def render(viewpoint_camera, pc : GaussianModel, features_splatting = False):
     else:
         rendered_image, segmentation_image = latent_image, None
     return {"render": rendered_image,
-            "segmentation": None,
+            "segmentation": segmentation_image,
             "viewspace_points":  meta["means2d"],
             "visibility_filter" : meta["radii"][0] > 0,
             #"visibility_filter" : meta["gaussian_ids"],
